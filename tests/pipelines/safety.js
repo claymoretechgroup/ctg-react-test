@@ -77,6 +77,28 @@ export default async function run({ config }) {
         .assert("is instance", (f) => f instanceof CTGVitestFormatter, true)
         .start(null, config);
 
+    await CTGTest.init("VitestFormatter: sanitizeMessage applied to recovered log")
+        .stage("execute", async () => {
+            const logged = [];
+            const originalWarn = console.warn;
+            console.warn = (...args) => { logged.push(args.join(" ")); };
+            try {
+                const formatter = new CTGVitestFormatter({
+                    sanitizeMessage: (msg) => msg.replace(/secret-key-123/g, "REDACTED")
+                });
+                await CTGReactTest.init("sanitize msg")
+                    .stage("throw", () => { throw new Error("failed with secret-key-123"); },
+                        () => "recovered")
+                    .start(null, { output: "return-json", timeout: 0, formatter });
+                const hasRedacted = logged.some((l) => l.includes("REDACTED"));
+                const hasSecret = logged.some((l) => l.includes("secret-key-123"));
+                return { hasRedacted, hasSecret };
+            } finally { console.warn = originalWarn; }
+        })
+        .assert("message redacted", (r) => r.hasRedacted, true)
+        .assert("no secret in log", (r) => r.hasSecret, false)
+        .start(null, config);
+
     await CTGTest.init("formatter detection: plain class not detected as execution")
         .stage("check", () => {
             class PlainFormatter { static format(r) { return JSON.stringify(r); } }

@@ -27,6 +27,7 @@ import runInteraction from "./pipelines/interaction.js";
 import runHooks from "./pipelines/hooks.js";
 import runSnapshots from "./pipelines/snapshots.js";
 import runSafety from "./pipelines/safety.js";
+import runVitestMode from "./pipelines/vitestMode.js";
 
 // ── Config ───────────────────────────────────────────────────
 
@@ -43,6 +44,7 @@ await runInteraction({ config });
 await runHooks({ config });
 await runSnapshots({ config });
 await runSafety({ config });
+await runVitestMode({ config });
 
 // ── Summary + Exit ───────────────────────────────────────────
 
