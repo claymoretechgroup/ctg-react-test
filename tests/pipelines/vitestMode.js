@@ -165,9 +165,10 @@ export default async function run({ config }) {
                 .start(1, { output: "return-json", timeout: 0, formatter, haltOnFailure: true });
             return formatter.getReport();
         })
-        .assert("failed count", (r) => r.failed, 1)
-        .assert("total reflects halt", (r) => r.total <= 2, true)
-        .assert("skipped from halt", (r) => r.skipped >= 0, true)
+        .assert("status fail", (r) => r.status, "fail")
+        .assert("failed 1", (r) => r.failed, 1)
+        .assert("skipped 1", (r) => r.skipped, 1)
+        .assert("total 2", (r) => r.total, 2)
         .start(null, config);
 
     await CTGTest.init("vitest mode: haltOnFailure false runs all")
