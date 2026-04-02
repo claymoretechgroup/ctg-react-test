@@ -7,7 +7,9 @@
         ".": "./src/index.js"
     },
     "scripts": {
-        "test": "node tests/SelfTest.js"
+        "test": "node tests/SelfTest.js",
+        "test:vitest": "vitest run tests/integration/",
+        "test:all": "node tests/SelfTest.js && vitest run tests/integration/"
     },
     "peerDependencies": {
         "react": ">=18.0.0",
