@@ -1,5 +1,13 @@
-// Vitest execution mode tests — formatter runtime behavior, shared state,
-// lossy status mapping, getReport() counts, conditional skip, haltOnFailure
+// Vitest execution mode tests — formatter-unit level
+//
+// These tests validate the VitestFormatter's runtime behavior (shared state
+// threading, status mapping, getReport() counts) by calling formatter.execute()
+// directly within our standalone test harness.
+//
+// They do NOT validate runner-level semantics (it.skip() registration,
+// describe() nesting, beforeAll/afterAll hooks) because those require running
+// under actual Vitest. Runner-level integration tests should be written as
+// *.pipeline.test.js files executed by Vitest directly.
 
 import React from "react";
 import CTGTest from "../../../ctg-js-test/src/CTGTest.js";

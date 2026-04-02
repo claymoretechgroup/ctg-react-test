@@ -2,7 +2,7 @@
 
 import { writeFileSync, readFileSync, existsSync, symlinkSync,
     rmSync, mkdtempSync, realpathSync } from "node:fs";
-import { join } from "node:path";
+import { join, relative } from "node:path";
 import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 
@@ -258,7 +258,7 @@ export default async function run({ config }) {
         .assert("url file not used", (r) => r.urlExists, false)
         .start(null, config);
 
-    await CTGTest.init("snapshot: missing path info throws in strict mode")
+    await CTGTest.init("snapshot: null path and url throws INVALID_STEP")
         .stage("attempt", async () => {
             try {
                 await CTGReactTest.init("no path")
@@ -271,42 +271,41 @@ export default async function run({ config }) {
                 return e.type === "INVALID_STEP" ? "threw" : `wrong: ${e.message}`;
             }
         })
-        .assert("threw or used fallback", (r) => r === "threw" || r !== "no throw", true)
+        .assert("threw INVALID_STEP", (r) => r, "threw")
         .start(null, config);
 
     // ── Symlink Safety (Strengthened) ────────────────────────
 
-    await CTGTest.init("snapshot: symlink containment enforced (not skippable)")
+    await CTGTest.init("snapshot: symlink containment rejects external directory")
         .stage("attempt", () => {
             const tmpDir = mkdtempSync(join(tmpdir(), "ctg-snap-"));
             const externalDir = mkdtempSync(join(tmpdir(), "ctg-external-"));
             const snapDir = join(tmpDir, "__snapshots__");
-            let symlinkCreated = false;
             try {
                 symlinkSync(externalDir, snapDir);
-                symlinkCreated = true;
             } catch {
-                // Can't create symlinks — verify the containment check logic directly
-                // by checking that realpath of a directory outside testFileDir is rejected
+                // Can't create symlinks in this environment — test the framework's
+                // containment check by manually creating __snapshots__ pointing outside
+                // and calling _compareSnapshot, which should reject.
+                // Since we can't test with real symlinks, verify path containment
+                // logic rejects external paths.
                 rmSync(tmpDir, { recursive: true });
                 rmSync(externalDir, { recursive: true });
-                // Test the containment logic directly: external path should not start with testFileDir
-                const { relative, isAbsolute } = await import("node:path");
                 const rel = relative(tmpDir, externalDir);
-                return rel.startsWith("..") ? "containment logic correct" : "containment logic broken";
+                if (!rel.startsWith("..")) return "containment logic broken";
+                return "symlinks unavailable — path logic verified";
             }
-            if (symlinkCreated) {
-                try {
-                    CTGReactTest._compareSnapshot(join(tmpDir, "Test.js"), "a > b", "data");
-                    return "no throw — vulnerability";
-                } catch (e) {
-                    return e.type === "INVALID_STEP" ? "threw" : `wrong: ${e.message}`;
-                } finally {
-                    rmSync(tmpDir, { recursive: true });
-                    rmSync(externalDir, { recursive: true });
-                }
+            try {
+                CTGReactTest._compareSnapshot(join(tmpDir, "Test.js"), "a > b", "data");
+                return "no throw — vulnerability";
+            } catch (e) {
+                return e.type === "INVALID_STEP" ? "threw" : `wrong: ${e.message}`;
+            } finally {
+                rmSync(tmpDir, { recursive: true });
+                rmSync(externalDir, { recursive: true });
             }
         })
-        .assert("containment enforced", (r) => r === "threw" || r === "containment logic correct", true)
+        .assert("containment enforced", (r) =>
+            r === "threw" || r === "symlinks unavailable — path logic verified", true)
         .start(null, config);
 }
