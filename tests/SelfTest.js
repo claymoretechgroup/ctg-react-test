@@ -3,6 +3,11 @@
 // Composes test pipelines from category modules.
 // Sets up jsdom for standalone React rendering.
 // Each pipeline category is a separate module in tests/pipelines/.
+//
+// NOTE: This file covers standalone and formatter-unit tests only.
+// Vitest runner-level integration tests live in tests/integration/
+// and must be run separately via: npm run test:vitest
+// For full coverage: npm run test:all
 
 import CTGTest from "../../ctg-js-test/src/CTGTest.js"; // Test framework
 

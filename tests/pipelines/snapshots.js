@@ -321,7 +321,7 @@ export default async function run({ config }) {
                 return e.type === "INVALID_STEP" ? "threw" : `wrong: ${e.message}`;
             } finally { rmSync(tmpDir, { recursive: true }); }
         })
-        .assert("rejected or contained", (r) => r === "threw" || r === "no throw", true)
+        .assert("rejected traversal", (r) => r, "threw")
         .start(null, config);
 
     await CTGTest.init("snapshot: path.relative containment rejects sibling dirs")
