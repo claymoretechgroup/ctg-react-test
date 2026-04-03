@@ -1,3 +1,4 @@
+import CTGTest from "../../../ctg-js-test/src/CTGTest.js"; // Base class for MAX_CHAIN_DEPTH
 import CTGTestResult from "../../../ctg-js-test/src/CTGTestResult.js"; // Result factories
 
 // Execution adapter for Vitest — registers pipeline steps as runtime it() blocks
@@ -31,8 +32,8 @@ export default class CTGVitestFormatter {
     // Future versions may emit real describe/it blocks for native Vitest
     // integration (skip display, watch mode, filtering).
     async execute(pipeline, subject, config = {}, depth = 0) {
-        if (depth >= 64) {
-            throw new Error("Chain depth exceeds maximum of 64");
+        if (depth >= CTGTest.MAX_CHAIN_DEPTH) {
+            throw new Error(`Chain depth exceeds maximum of ${CTGTest.MAX_CHAIN_DEPTH}`);
         }
         this._depth = depth;
 
@@ -60,7 +61,8 @@ export default class CTGVitestFormatter {
             }
 
             // Check conditional skip
-            const timeoutMs = config.timeout ? Math.round(config.timeout * 1000) : 0;
+            // config.timeout is already in milliseconds (from ctg-js-test)
+            const timeoutMs = config.timeout || 0;
             if (skipDirective && skipDirective.predicate) {
                 try {
                     const shouldSkip = await this._withTimeout(
