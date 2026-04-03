@@ -274,6 +274,8 @@ export default class CTGVitestFormatter {
             return result;
         } catch (err) {
             clearTimeout(timer);
+            // Sink catch on the original promise to prevent unhandled rejection noise
+            Promise.resolve(promise).catch(() => {});
             throw err;
         }
     }
