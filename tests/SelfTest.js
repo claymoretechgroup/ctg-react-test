@@ -17,11 +17,17 @@ import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
 global.window = dom.window;
 global.document = dom.window.document;
-global.navigator = dom.window.navigator;
+Object.defineProperty(global, "navigator", { value: dom.window.navigator, writable: true, configurable: true });
 global.HTMLElement = dom.window.HTMLElement;
 global.MutationObserver = dom.window.MutationObserver;
 global.requestAnimationFrame = (cb) => setTimeout(cb, 0);
 global.cancelAnimationFrame = (id) => clearTimeout(id);
+global.Node = dom.window.Node;
+global.Text = dom.window.Text;
+global.DocumentFragment = dom.window.DocumentFragment;
+global.Element = dom.window.Element;
+global.Event = dom.window.Event;
+global.CustomEvent = dom.window.CustomEvent;
 
 // ── Pipeline Categories ──────────────────────────────────────
 
