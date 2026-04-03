@@ -74,12 +74,12 @@ export default class CTGReactTest extends CTGTest {
         const formatter = resolved.formatter || null;
 
         if (formatter && formatter.constructor._isExecutionFormatter === true) {
-            await formatter.execute(this, subject, resolved);
+            const result = await formatter.execute(this, subject, resolved);
             const report = formatter.getReport();
             if (report) {
                 CTGTest._results.push({ name: this._name, status: report.status });
             }
-            return;
+            return result;
         }
 
         // Standalone mode: execute pipeline directly (skip super.start validation
