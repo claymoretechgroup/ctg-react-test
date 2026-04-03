@@ -1,6 +1,6 @@
 import { existsSync, readFileSync, writeFileSync, mkdirSync, renameSync,
     realpathSync } from "node:fs"; // File ops for snapshot manager
-import { join, dirname, basename, relative } from "node:path"; // Path utils
+import { join, dirname, basename, relative, isAbsolute } from "node:path"; // Path utils
 import { fileURLToPath } from "node:url"; // URL to path conversion
 import { performance } from "node:perf_hooks"; // Timing
 
@@ -419,13 +419,24 @@ export default class CTGReactTest extends CTGTest {
         const testFileName = basename(filePath);
         const snapDir = join(testFileDir, "__snapshots__");
 
-        mkdirSync(snapDir, { recursive: true });
+        try {
+            mkdirSync(snapDir, { recursive: true });
+        } catch (err) {
+            throw new CTGTestError("INVALID_STEP",
+                `Cannot create snapshot directory: ${err.message}`);
+        }
 
         // Containment check: resolved snapshot dir must be under test file dir
-        const realSnapDir = realpathSync(snapDir);
-        const realTestDir = realpathSync(testFileDir);
+        let realSnapDir, realTestDir;
+        try {
+            realSnapDir = realpathSync(snapDir);
+            realTestDir = realpathSync(testFileDir);
+        } catch (err) {
+            throw new CTGTestError("INVALID_STEP",
+                `Cannot resolve snapshot path: ${err.message}`);
+        }
         const rel = relative(realTestDir, realSnapDir);
-        if (rel.startsWith("..") || require_isAbsolute(rel)) {
+        if (rel.startsWith("..") || isAbsolute(rel)) {
             throw new CTGTestError("INVALID_STEP",
                 "Snapshot directory resolves outside test file directory");
         }
@@ -483,16 +494,11 @@ export default class CTGReactTest extends CTGTest {
     }
 
     // :: STRING, STRING -> VOID
-    // Atomic write via temp file + rename.
+    // Atomic write via unique temp file + rename.
     static _atomicWrite(targetPath, content) {
-        const tmpPath = targetPath + ".tmp";
+        const tmpPath = `${targetPath}.${process.pid}.${Date.now()}.tmp`;
         writeFileSync(tmpPath, content, "utf-8");
         renameSync(tmpPath, targetPath);
     }
 }
 
-// :: STRING -> BOOL
-// path.isAbsolute without importing path again (already used above)
-function require_isAbsolute(p) {
-    return p.startsWith("/") || /^[A-Za-z]:/.test(p);
-}

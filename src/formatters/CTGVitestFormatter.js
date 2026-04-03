@@ -23,8 +23,12 @@ export default class CTGVitestFormatter {
 
     // :: ctgReactTest, *, OBJECT? -> PROMISE(VOID)
     // Executes the pipeline by running steps sequentially, tracking statuses,
-    // and producing a report. In standalone test harness, this runs directly.
-    // Under Vitest, this would be called within a describe() block.
+    // and producing a report.
+    // NOTE: v1.0.0 executes steps in-process rather than emitting Vitest
+    // describe/it registrations. This provides correct five-status semantics
+    // and subject threading without requiring Vitest's runtime context.
+    // Future versions may emit real describe/it blocks for native Vitest
+    // integration (skip display, watch mode, filtering).
     async execute(pipeline, subject, config = {}) {
         const state = {
             subject,
@@ -83,6 +87,7 @@ export default class CTGVitestFormatter {
         const resultSteps = state.statuses.map((s) => ({ status: s.status, name: s.name, duration_ms: 0 }));
         this._report = CTGTestResult.report(pipeline.name, resultSteps);
         this._statuses = state.statuses;
+        this._finalSubject = state.subject;
 
         // Cleanup
         try {
@@ -223,9 +228,9 @@ export default class CTGVitestFormatter {
         await subFormatter.execute(chainPipeline, state.subject, config);
         const subReport = subFormatter.getReport();
 
-        // Thread subject back — chain may have mutated it
-        // The sub-formatter's final subject isn't directly accessible,
-        // so we use the sub-report status
+        // Thread subject back from chain
+        state.subject = subFormatter._finalSubject;
+
         state.statuses.push(...subFormatter._statuses.map((s) => ({
             name: `${step.name} > ${s.name}`, status: s.status
         })));
