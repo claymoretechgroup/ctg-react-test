@@ -71,18 +71,35 @@ export default async function run({ config }) {
 
     // ── Path Safety ──────────────────────────────────────────
 
-    await CTGTest.init("snapshot manager: path sanitization")
+    await CTGTest.init("snapshot manager: key escaping preserves uniqueness")
         .stage("execute", () => {
             const tmpDir = mkdtempSync(join(tmpdir(), "ctg-snap-"));
             const filePath = join(tmpDir, "Test.js");
-            CTGReactTest._compareSnapshot(filePath, "a/../b > c\0d", "safe");
+            // Two different paths should produce different keys
+            CTGReactTest._compareSnapshot(filePath, "a/b", "val1");
+            CTGReactTest._compareSnapshot(filePath, "ab", "val2");
+            const snapFile = join(tmpDir, "__snapshots__", "Test.snap.json");
+            const data = JSON.parse(readFileSync(snapFile, "utf-8"));
+            const keys = Object.keys(data);
+            rmSync(tmpDir, { recursive: true });
+            return keys.length === 2 && keys[0] !== keys[1];
+        })
+        .assert("different paths produce different keys", (r) => r, true)
+        .start(null, config);
+
+    await CTGTest.init("snapshot manager: null bytes escaped in key")
+        .stage("execute", () => {
+            const tmpDir = mkdtempSync(join(tmpdir(), "ctg-snap-"));
+            const filePath = join(tmpDir, "Test.js");
+            CTGReactTest._compareSnapshot(filePath, "a\0b", "safe");
             const snapFile = join(tmpDir, "__snapshots__", "Test.snap.json");
             const data = JSON.parse(readFileSync(snapFile, "utf-8"));
             const key = Object.keys(data)[0];
             rmSync(tmpDir, { recursive: true });
-            return !key.includes("/") && !key.includes("\\") && !key.includes("\0");
+            // Raw null byte should not be in the key
+            return !key.includes("\0");
         })
-        .assert("key sanitized", (r) => r, true)
+        .assert("no raw null byte", (r) => r, true)
         .start(null, config);
 
     // NOTE: Symlink containment tests are in the "Symlink Safety" section below.

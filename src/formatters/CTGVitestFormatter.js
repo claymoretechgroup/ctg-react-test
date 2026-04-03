@@ -13,6 +13,7 @@ export default class CTGVitestFormatter {
         this._sanitizeMessage = config.sanitizeMessage || null;
         this._statuses = [];
         this._report = null;
+        this._isNested = false;
     }
 
     /**
@@ -89,12 +90,14 @@ export default class CTGVitestFormatter {
         this._statuses = state.statuses;
         this._finalSubject = state.subject;
 
-        // Cleanup
-        try {
-            const rtl = await import("@testing-library/react");
-            if (rtl.cleanup) rtl.cleanup();
-        } catch {
-            // not available
+        // Cleanup — only at top level, not in chained sub-formatters
+        if (!this._isNested) {
+            try {
+                const rtl = await import("@testing-library/react");
+                if (rtl.cleanup) rtl.cleanup();
+            } catch {
+                // not available
+            }
         }
     }
 
@@ -225,6 +228,7 @@ export default class CTGVitestFormatter {
     async _executeChainStep(step, state, config, pipeline) {
         const chainPipeline = step.fn;
         const subFormatter = new CTGVitestFormatter({ sanitizeMessage: this._sanitizeMessage });
+        subFormatter._isNested = true;
         await subFormatter.execute(chainPipeline, state.subject, config);
         const subReport = subFormatter.getReport();
 

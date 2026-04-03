@@ -407,9 +407,16 @@ export default class CTGReactTest extends CTGTest {
     }
 
     // :: STRING -> STRING
-    // Sanitizes a snapshot key by removing path separators, control chars, null bytes.
+    // Sanitizes a snapshot key by escaping path separators, control chars, null bytes.
+    // Uses escaping (not stripping) to prevent key collisions between different paths.
     static _sanitizeSnapshotKey(key) {
-        return key.replace(/[/\\:\0\r\n]/g, "");
+        return key
+            .replace(/\\/g, "\\\\")     // escape backslash first
+            .replace(/\//g, "\\_")      // forward slash → \_
+            .replace(/:/g, "\\c")       // colon → \c
+            .replace(/\0/g, "\\0")      // null byte → \0
+            .replace(/\r/g, "\\r")      // CR → \r
+            .replace(/\n/g, "\\n");     // LF → \n
     }
 
     // :: STRING -> {dir: STRING, file: STRING}
