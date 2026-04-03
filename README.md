@@ -14,7 +14,7 @@
 ## Install
 
 ```
-npm install ctg-react-test
+npm install claymoretechgroup/ctg-react-test
 ```
 
 Peer dependencies: `react`, `react-dom`, `@testing-library/react`. Optional: `@testing-library/user-event`, `vitest`.
