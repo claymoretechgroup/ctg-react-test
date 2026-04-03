@@ -184,6 +184,31 @@ export default async function run({ config }) {
         .assert("failed 2", (r) => r.failed, 2)
         .start(null, config);
 
+    // ── Timeout in Formatter Mode ──────────────────────────────
+
+    await CTGTest.init("vitest mode: timeout fires for slow step")
+        .stage("execute", async () => {
+            const formatter = new CTGVitestFormatter();
+            await CTGReactTest.init("timeout vitest")
+                .stage("slow", () => new Promise((resolve) => setTimeout(resolve, 500)))
+                .start(null, { output: "return-json", timeout: 50, formatter });
+            return formatter.getReport();
+        })
+        .assert("has error", (r) => r.errored >= 1, true)
+        .start(null, config);
+
+    await CTGTest.init("vitest mode: fast step passes with timeout enabled")
+        .stage("execute", async () => {
+            const formatter = new CTGVitestFormatter();
+            await CTGReactTest.init("fast vitest")
+                .stage("quick", (x) => x * 2)
+                .assert("is 10", (x) => x, 10)
+                .start(5, { output: "return-json", timeout: 5000, formatter });
+            return formatter.getReport();
+        })
+        .assert("status pass", (r) => r.status, "pass")
+        .start(null, config);
+
     // ── Cleanup in Formatter Mode ────────────────────────────
 
     await CTGTest.init("vitest mode: cleanup runs after formatter pipeline")
