@@ -30,7 +30,12 @@ export default class CTGVitestFormatter {
     // and subject threading without requiring Vitest's runtime context.
     // Future versions may emit real describe/it blocks for native Vitest
     // integration (skip display, watch mode, filtering).
-    async execute(pipeline, subject, config = {}) {
+    async execute(pipeline, subject, config = {}, depth = 0) {
+        if (depth >= 64) {
+            throw new Error("Chain depth exceeds maximum of 64");
+        }
+        this._depth = depth;
+
         const state = {
             subject,
             halted: false,
@@ -55,9 +60,12 @@ export default class CTGVitestFormatter {
             }
 
             // Check conditional skip
+            const timeoutMs = config.timeout ? Math.round(config.timeout * 1000) : 0;
             if (skipDirective && skipDirective.predicate) {
                 try {
-                    const shouldSkip = await skipDirective.predicate(state.subject);
+                    const shouldSkip = await this._withTimeout(
+                        Promise.resolve(skipDirective.predicate(state.subject)),
+                        timeoutMs, `${trimmedName} (skip predicate)`);
                     if (shouldSkip) {
                         state.statuses.push({ name: trimmedName, status: "skip" });
                         continue;
@@ -75,8 +83,15 @@ export default class CTGVitestFormatter {
                 continue;
             }
 
-            // Execute step
-            const status = await this._executeStep(step, state, config, pipeline);
+            // Execute step with timeout guard
+            let status;
+            try {
+                status = await this._withTimeout(
+                    this._executeStep(step, state, config, pipeline),
+                    timeoutMs, trimmedName);
+            } catch (err) {
+                status = "error";
+            }
             state.statuses.push({ name: trimmedName, status });
 
             if ((status === "fail" || status === "error") && config.haltOnFailure !== false) {
@@ -229,7 +244,8 @@ export default class CTGVitestFormatter {
         const chainPipeline = step.fn;
         const subFormatter = new CTGVitestFormatter({ sanitizeMessage: this._sanitizeMessage });
         subFormatter._isNested = true;
-        await subFormatter.execute(chainPipeline, state.subject, config);
+        const nextDepth = (this._depth || 0) + 1;
+        await subFormatter.execute(chainPipeline, state.subject, config, nextDepth);
         const subReport = subFormatter.getReport();
 
         // Thread subject back from chain
@@ -240,6 +256,24 @@ export default class CTGVitestFormatter {
         })));
 
         return subReport.status;
+    }
+
+    // :: PROMISE(*), INT, STRING -> PROMISE(*)
+    // Wraps a promise with a timeout guard. Returns the promise result or throws on timeout.
+    async _withTimeout(promise, timeoutMs, stepName) {
+        if (!timeoutMs || timeoutMs <= 0) return promise;
+        let timer;
+        const timeoutPromise = new Promise((_, reject) => {
+            timer = setTimeout(() => reject(new Error(`Step '${stepName}' timed out after ${timeoutMs}ms`)), timeoutMs);
+        });
+        try {
+            const result = await Promise.race([promise, timeoutPromise]);
+            clearTimeout(timer);
+            return result;
+        } catch (err) {
+            clearTimeout(timer);
+            throw err;
+        }
     }
 
     // :: STRING -> STRING

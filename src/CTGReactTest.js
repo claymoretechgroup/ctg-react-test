@@ -65,14 +65,26 @@ export default class CTGReactTest extends CTGTest {
     // :: *, OBJECT? -> PROMISE(STRING|OBJECT|VOID)
     // If formatter is ExecutionFormatter, delegates. Otherwise standalone with cleanup.
     async start(subject, config = {}) {
-        const formatter = config.formatter || null;
+        // Run validation once (not twice via super.start)
+        const resolved = this._resolveConfig(config);
+        this._validateConfig(resolved);
+        this._validateSteps();
+        this._validateSkips();
+
+        const formatter = resolved.formatter || null;
 
         if (formatter && formatter.constructor._isExecutionFormatter === true) {
-            return formatter.execute(this, subject, config);
+            return formatter.execute(this, subject, resolved);
         }
 
+        // Standalone mode: execute pipeline directly (skip super.start validation
+        // since we already validated above)
         try {
-            return await super.start(subject, config);
+            const { results: stepResults } = await this._executeSteps(
+                subject, resolved, 0, this._steps, this._skips);
+            const report = CTGTestResult.report(this._name, stepResults);
+            CTGTest._results.push({ name: this._name, status: report.status });
+            return this._deliver(report, resolved);
         } finally {
             try {
                 const rtl = await import("@testing-library/react");
@@ -124,6 +136,11 @@ export default class CTGReactTest extends CTGTest {
         delete parentConfig.snapshotFileUrl;
         delete parentConfig.updateSnapshots;
         delete parentConfig.maxSnapshotBytes;
+        // Execution formatter instances are not class references — parent would
+        // reject them as "not a constructor function". Strip before parent validation.
+        if (parentConfig.formatter && parentConfig.formatter.constructor._isExecutionFormatter) {
+            parentConfig.formatter = null;
+        }
         super._validateConfig(parentConfig);
     }
 
