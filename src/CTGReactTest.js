@@ -97,8 +97,28 @@ export default class CTGReactTest extends CTGTest {
                 throw new CTGTestError("INVALID_CONFIG", `Unknown config key: ${key}`);
             }
         }
+        // Validate React-specific config types
+        if (config.snapshotFilePath !== undefined && config.snapshotFilePath !== null
+            && typeof config.snapshotFilePath !== "string") {
+            throw new CTGTestError("INVALID_CONFIG", "snapshotFilePath must be a string");
+        }
+        if (config.snapshotFileUrl !== undefined && config.snapshotFileUrl !== null
+            && typeof config.snapshotFileUrl !== "string") {
+            throw new CTGTestError("INVALID_CONFIG", "snapshotFileUrl must be a string");
+        }
+        if (config.updateSnapshots !== undefined && typeof config.updateSnapshots !== "boolean") {
+            throw new CTGTestError("INVALID_CONFIG", "updateSnapshots must be a boolean");
+        }
+        if (config.maxSnapshotBytes !== undefined && config.maxSnapshotBytes !== null) {
+            if (typeof config.maxSnapshotBytes !== "number"
+                || !Number.isFinite(config.maxSnapshotBytes)
+                || config.maxSnapshotBytes <= 0
+                || config.maxSnapshotBytes !== Math.trunc(config.maxSnapshotBytes)) {
+                throw new CTGTestError("INVALID_CONFIG", "maxSnapshotBytes must be a positive integer");
+            }
+        }
+
         // Delegate remaining validation to parent (output mode, booleans, formatter, timeout)
-        // by temporarily removing React-specific keys
         const parentConfig = { ...config };
         delete parentConfig.snapshotFilePath;
         delete parentConfig.snapshotFileUrl;

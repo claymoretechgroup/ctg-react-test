@@ -752,13 +752,25 @@ skipped or halted steps. The `getReport()` method returns a standard
 
 ## Vitest Execution Algorithm
 
-The VitestFormatter walks the pipeline definition and emits Vitest constructs using
-a deterministic algorithm. **No pipeline logic executes at registration time.** All
-mutating steps (stage, render, renderHook, interact) run inside Vitest lifecycle
-hooks at test runtime, after Vitest has resolved filtering, skip semantics, and
-test ordering.
+### v1.0.0: In-Process Execution
 
-### Step Registration Algorithm
+The v1.0.0 `CTGVitestFormatter` executes pipeline steps **in-process sequentially**
+rather than emitting native Vitest `describe`/`it` registrations. This provides
+correct five-status semantics, subject threading, and report generation without
+requiring Vitest's runtime context. The formatter can run both inside Vitest
+(called from a test file) and standalone (called from `node`).
+
+**Trade-offs:**
+- Skip display, watch-mode filtering, and per-step duration in Vitest output
+  are not available (steps don't register as individual `it()` blocks)
+- Five-status reporting is accurate via `getReport()`
+- Subject threading and cleanup are correct
+
+**Future:** A v2 formatter may emit real `describe`/`it` blocks for native Vitest
+integration. The spec below describes that target model for reference, but v1.0.0
+implements the in-process model.
+
+### Target Model (Reference — Not Implemented in v1.0.0)
 
 Given a pipeline with steps `[s1, s2, s3, ...]` and an initial subject:
 
