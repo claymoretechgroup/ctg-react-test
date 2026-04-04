@@ -33,7 +33,7 @@ CTG JS projects. Peer dependencies isolate optional integrations (Vitest, Playwr
 
 **Requirements doc says:** "Port the ctg-php-test pipeline model faithfully to TypeScript."
 
-**This spec says:** The core pipeline engine already exists as `ctg-js-test` (v1.0.0,
+**This spec says:** The core pipeline engine already exists as `ctg-js-test` (v1.1.0,
 shipped). `ctg-react-test` extends `CTGTest` via `class CTGReactTest extends CTGTest`.
 No re-implementation of the core engine. All core behavior (stage, assert, assertAny,
 chain, skip, start, compare, error handling, result model) is inherited.
@@ -122,7 +122,7 @@ ctg-react-test/
         "@testing-library/user-event": { "optional": true }
     },
     "dependencies": {
-        "ctg-js-test": "file:../ctg-js-test"
+        "ctg-js-test": "claymoretechgroup/ctg-js-test"
     }
 }
 ```
@@ -130,8 +130,7 @@ ctg-react-test/
 - **`"type": "module"`** — all `.js` files are ESM
 - **Peer dependencies** — React, Testing Library, and Vitest are peer deps (not bundled)
 - **Vitest is optional** — standalone/console mode works without it
-- **ctg-js-test** — linked as file dependency during development; published version
-  would use a registry reference
+- **ctg-js-test** — installed from GitHub via `claymoretechgroup/ctg-js-test`
 - **Minimum Node.js version:** 19.7+ (matches ctg-js-test)
 
 ---
