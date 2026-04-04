@@ -4,10 +4,10 @@ import { join, dirname, basename, relative, isAbsolute } from "node:path"; // Pa
 import { fileURLToPath } from "node:url"; // URL to path conversion
 import { performance } from "node:perf_hooks"; // Timing
 
-import CTGTest from "../../ctg-js-test/src/CTGTest.js"; // Base pipeline engine
-import CTGTestError from "../../ctg-js-test/src/CTGTestError.js"; // Typed errors
-import CTGTestResult from "../../ctg-js-test/src/CTGTestResult.js"; // Result factories
-import CTGTestStep from "../../ctg-js-test/src/CTGTestStep.js"; // Step value object
+import CTGTest from "ctg-js-test"; // Base pipeline engine
+import CTGTestError from "ctg-js-test/error"; // Typed errors
+import CTGTestResult from "ctg-js-test/result"; // Result factories
+import CTGTestStep from "ctg-js-test/step"; // Step value object
 import ReactContext from "./ReactContext.js"; // React subject wrapper
 
 // Composable pipeline-based test framework for React, extending ctg-js-test

@@ -1,6 +1,6 @@
 // CTGReactTest construction, inheritance, and step registration tests
 
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js";
+import CTGTest from "ctg-js-test";
 import CTGReactTest from "../../src/CTGReactTest.js";
 
 // :: OBJECT -> PROMISE(VOID)

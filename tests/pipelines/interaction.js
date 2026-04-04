@@ -1,7 +1,7 @@
 // User interaction tests — click, type, form submission
 
 import React from "react";
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js";
+import CTGTest from "ctg-js-test";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import { Counter, LoginForm } from "../components.js";
 

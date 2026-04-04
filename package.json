@@ -11,6 +11,9 @@
         "test:vitest": "vitest run tests/integration/",
         "test:all": "node tests/SelfTest.js && vitest run tests/integration/"
     },
+    "dependencies": {
+        "ctg-js-test": "claymoretechgroup/ctg-js-test"
+    },
     "peerDependencies": {
         "react": ">=18.0.0",
         "react-dom": ">=18.0.0",

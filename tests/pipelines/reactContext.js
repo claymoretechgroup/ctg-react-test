@@ -1,6 +1,6 @@
 // ReactContext value object tests
 
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js";
+import CTGTest from "ctg-js-test";
 import ReactContext from "../../src/ReactContext.js";
 
 // :: OBJECT -> PROMISE(VOID)

@@ -7,7 +7,7 @@ import { pathToFileURL } from "node:url";
 import { tmpdir } from "node:os";
 
 import React from "react";
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js";
+import CTGTest from "ctg-js-test";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import { Greeting } from "../components.js";
 

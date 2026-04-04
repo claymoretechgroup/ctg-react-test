@@ -9,7 +9,7 @@
 // and must be run separately via: npm run test:vitest
 // For full coverage: npm run test:all
 
-import CTGTest from "../../ctg-js-test/src/CTGTest.js"; // Test framework
+import CTGTest from "ctg-js-test"; // Test framework
 
 // ── jsdom Setup (standalone DOM for React rendering) ─────────
 

@@ -1,6 +1,6 @@
 // renderHook tests — custom hook rendering and result threading
 
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js";
+import CTGTest from "ctg-js-test";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import { useCounter } from "../components.js";
 

@@ -1,5 +1,5 @@
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js"; // Base class for MAX_CHAIN_DEPTH
-import CTGTestResult from "../../../ctg-js-test/src/CTGTestResult.js"; // Result factories
+import CTGTest from "ctg-js-test"; // Base class for MAX_CHAIN_DEPTH
+import CTGTestResult from "ctg-js-test/result"; // Result factories
 
 // Execution adapter for Vitest — registers pipeline steps as runtime it() blocks
 export default class CTGVitestFormatter {

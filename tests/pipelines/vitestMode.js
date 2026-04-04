@@ -10,7 +10,7 @@
 // *.pipeline.test.js files executed by Vitest directly.
 
 import React from "react";
-import CTGTest from "../../../ctg-js-test/src/CTGTest.js";
+import CTGTest from "ctg-js-test";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import CTGVitestFormatter from "../../src/formatters/CTGVitestFormatter.js";
 import { Greeting, Counter } from "../components.js";
