@@ -1,0 +1,38 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Dynamic</title>
+    <style>
+        body { margin: 0; padding: 20px; font-family: sans-serif; background: #fff; color: #111; }
+        h1 { font-size: 24px; margin: 0 0 10px; }
+        #user-name { font-size: 14px; }
+        #notifications { font-size: 14px; margin-top: 10px; }
+    </style>
+</head>
+<body>
+    <h1 data-testid="heading">Dashboard</h1>
+    <div id="user-name" data-testid="user-name">Loading...</div>
+    <div id="notifications" data-testid="notifications">Loading...</div>
+    <script>
+        fetch("/api/user")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById("user-name").textContent = data.name;
+            })
+            .catch(function() {
+                document.getElementById("user-name").textContent = "Error loading user";
+            });
+
+        fetch("/api/notifications")
+            .then(function(r) { return r.json(); })
+            .then(function(data) {
+                document.getElementById("notifications").textContent =
+                    data.length === 0 ? "No notifications" : data.length + " notifications";
+            })
+            .catch(function() {
+                document.getElementById("notifications").textContent = "Error loading notifications";
+            });
+    </script>
+</body>
+</html>

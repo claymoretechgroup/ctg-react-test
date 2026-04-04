@@ -1,0 +1,35 @@
+<!doctype html>
+<html lang="en">
+<head>
+    <meta charset="utf-8">
+    <title>Screenshot Test</title>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+        body { width: 400px; height: 300px; background: #f0f0f0; font-family: sans-serif; }
+        .card {
+            margin: 20px;
+            padding: 16px;
+            background: #fff;
+            border: 2px solid #333;
+            width: 360px;
+        }
+        .card h2 { font-size: 18px; color: #333; margin-bottom: 8px; }
+        .card p { font-size: 14px; color: #666; }
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            background: #0057b7;
+            color: #fff;
+            font-size: 12px;
+            margin-top: 8px;
+        }
+    </style>
+</head>
+<body>
+    <div class="card" data-testid="card">
+        <h2>Stable Card</h2>
+        <p>This content does not change.</p>
+        <span class="badge">v1.0</span>
+    </div>
+</body>
+</html>
