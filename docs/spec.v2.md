@@ -37,7 +37,7 @@ render step.
 
 | Field | Type | Description |
 |-------|------|-------------|
-| screen | OBJECT\|NULL | RTL screen object for queries |
+| screen | OBJECT\|NULL | Container-scoped RTL queries via `within(container)` |
 | user | OBJECT\|NULL | user-event instance for interactions |
 | container | HTMLElement\|NULL | Rendered container element |
 | rerender | FUNCTION\|NULL | RTL rerender function |
@@ -88,7 +88,8 @@ Renders a React element and populates ReactTestState fields.
    with jsdom/happy-dom environment"` if missing
 2. Evaluate element (if function, call it; otherwise use directly)
 3. Call `@testing-library/react.render(element, { wrapper })`
-4. Populate `state.screen`, `state.container`, `state.rerender`
+4. Populate `state.screen` (via `within(container)` for container-scoped
+   queries), `state.container`, `state.rerender`
 5. Attempt to set up `state.user` via `@testing-library/user-event` — if
    not installed, `state.user` is set to null (not an error; user-event is
    optional). Interaction steps will throw INVALID_STEP if user is null.
@@ -238,8 +239,12 @@ Renders a React hook in isolation and populates state with the hook result.
 2. Call `@testing-library/react.renderHook(hookFn, { wrapper })`
 3. RTL's renderHook returns `{ result, rerender, unmount }` — not the
    same shape as render(). Field mapping:
-   - `state.screen` — set to RTL screen (available for queries on the
-     hook's wrapper, if any)
+   - `state.screen` — set to `within(document.body)`. This is intentionally
+     global-document-based, unlike render's `within(container)`. Hooks don't
+     produce a dedicated container — the wrapper renders into document.body.
+     This carries the same global binding risk as `rtl.screen` but is
+     acceptable because hook tests rarely chain with component tests or
+     run interleaved with render cleanup.
    - `state.container` — set to `document.body` (hooks don't render
      visible DOM, but the wrapper may)
    - `state.rerender` — set to hookResult.rerender (re-runs the hook)
@@ -277,7 +282,50 @@ React-specific config keys for snapshot management.
 .renderHook(name, hookFn, opts)
 ```
 
-Inherited from CTGTest: stage, assert, assertAny, chain, skip.
+Inherited from CTGTest: stage, assert, assertAny, skip.
+
+### Chain Override (ReactChainStep)
+
+CTGReactTest overrides the chain step to preserve React testing state
+across chained pipelines.
+
+**Problem:** CTGTest's ChainStep passes `state.subject` to the inner
+pipeline. For React tests, the testing surface (screen, container, user,
+rerender) lives on state fields, not on subject. The inner pipeline would
+get a fresh ReactTestState with null React fields.
+
+**Solution:** ReactChainStep clones the outer state into a new
+ReactTestState, copying all React fields. The inner pipeline receives a
+separate state instance that shares the same rendered component references
+but has its own results array and name.
+
+```javascript
+const verifyGreeting = CTGReactTest.init("verify greeting")
+    .assert("has greeting", (state) =>
+        state.container.innerHTML.includes("Hello"), true);
+
+CTGReactTest.init("my test")
+    .render("mount", React.createElement(Greeting, { name: "World" }))
+    .chain("verify", verifyGreeting)  // inner pipeline sees screen/container
+    .start(null);
+```
+
+**Clone semantics:**
+- The inner pipeline gets a **new ReactTestState instance** — its own
+  results array, name, and config
+- React fields (screen, container, user, rerender, data) are **shared
+  references** — both pipelines see the same rendered component
+- The outer pipeline's results and name are **not affected** by the
+  inner pipeline's execution
+- If the inner pipeline re-renders, the shared container reference
+  changes — this is intentional and correct (the component changed)
+
+**execute(state):**
+1. Clone outer state into a new ReactTestState with shared React fields
+2. Run the inner pipeline with the cloned state
+3. Update outer state.subject from inner state.subject
+4. Set state._chainResult with inner results and status
+5. Return outer state
 
 ### Config
 
@@ -358,6 +406,18 @@ Used by the **render step**. Produces a real DOM in jsdom. Populates
 state.screen, state.user, state.container, state.rerender. This is the
 renderer for behavioral testing — interacting with components, querying
 the DOM, asserting on visible output.
+
+`state.screen` uses RTL's `within(container)` for container-scoped queries
+rather than the global `rtl.screen`. The global screen is bound to
+`document.body` and is reset by `cleanup()` between tests — after cleanup,
+global screen queries throw a binding error. Container-scoped queries avoid
+this binding error because they reference the specific render container, not
+the global document.
+
+NOTE: After `cleanup()`, the rendered component is unmounted. Container-scoped
+queries will not find nodes that were removed by unmounting. Querying state
+from a prior pipeline after cleanup is undefined behavior — always run
+assertions before cleanup.
 
 ### react-test-renderer
 

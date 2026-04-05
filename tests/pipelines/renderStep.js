@@ -4,13 +4,18 @@
 // populates ReactTestState fields (screen, user, container, rerender).
 
 import React from "react";
+import { cleanup } from "@testing-library/react";
 import CTGTestResult from "ctg-js-test/result";
 import ReactTestState from "../../src/ReactTestState.js";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import { Greeting, Counter } from "../components.js";
 
 // :: OBJECT -> PROMISE(VOID)
-export default async function run({ test, assert }) {
+export default async function run({ test: rawTest, assert }) {
+    // Wrap test to cleanup RTL after each render test
+    const test = (name, fn) => rawTest(name, async () => {
+        try { await fn(); } finally { cleanup(); }
+    });
 
     // ── Basic Render ────────────────────────────────────────────
 

@@ -68,7 +68,7 @@ export default async function run({ test, assert }) {
         assert(state.name === "my test", "name set");
     });
 
-    await test("state: inherits status aggregation", () => {
+    await test("state: inherits status aggregation", async () => {
         const CTGTestResult = (await import("ctg-js-test/result")).default;
         const state = new ReactTestState();
         state.results.push({ name: "a", status: CTGTestResult.STATUS.PASS });

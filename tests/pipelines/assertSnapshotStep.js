@@ -9,6 +9,7 @@
 // - Missing react-test-renderer dependency (INVALID_STEP error)
 
 import React from "react";
+import { cleanup } from "@testing-library/react";
 import { mkdtempSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { join } from "node:path";
 import { tmpdir } from "node:os";
@@ -17,7 +18,10 @@ import CTGReactTest from "../../src/CTGReactTest.js";
 import { Greeting, Counter } from "../components.js";
 
 // :: OBJECT -> PROMISE(VOID)
-export default async function run({ test, assert }) {
+export default async function run({ test: rawTest, assert }) {
+    const test = (name, fn) => rawTest(name, async () => {
+        try { await fn(); } finally { cleanup(); }
+    });
 
     // ── Basic Snapshot ──────────────────────────────────────────
 
@@ -198,20 +202,16 @@ export default async function run({ test, assert }) {
 
     // ── Config Required ─────────────────────────────────────────
 
-    await test("snapshot: missing path config throws INVALID_CONFIG", async () => {
-        let threw = false;
-        try {
-            await CTGReactTest.init("snapshot no path")
-                .assertSnapshot("greeting",
-                    React.createElement(Greeting, { name: "X" }))
-                .start(null);
-        } catch (err) {
-            threw = true;
-            assert(err.message.includes("snapshotFilePath") ||
-                   err.message.includes("snapshotFileUrl"),
-                "error mentions required config");
-        }
-        assert(threw, "missing path threw");
+    await test("snapshot: missing path config produces error result", async () => {
+        const state = await CTGReactTest.init("snapshot no path")
+            .assertSnapshot("greeting",
+                React.createElement(Greeting, { name: "X" }))
+            .start(null, { haltOnFailure: false });
+        const result = state.results.find((r) => r.name === "greeting");
+        assert(result.status === CTGTestResult.STATUS.ERROR, "error status");
+        assert(result.message.includes("snapshotFilePath") ||
+               result.message.includes("snapshotFileUrl"),
+            "error mentions required config");
     });
 
     // ── Pipeline Comparison ─────────────────────────────────────

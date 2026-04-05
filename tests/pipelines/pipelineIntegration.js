@@ -5,6 +5,7 @@
 // config validation, and negative paths.
 
 import React from "react";
+import { cleanup } from "@testing-library/react";
 import CTGTest from "ctg-js-test";
 import CTGTestResult from "ctg-js-test/result";
 import ReactTestState from "../../src/ReactTestState.js";
@@ -12,7 +13,10 @@ import CTGReactTest from "../../src/CTGReactTest.js";
 import { Greeting, Counter, LoginForm } from "../components.js";
 
 // :: OBJECT -> PROMISE(VOID)
-export default async function run({ test, assert }) {
+export default async function run({ test: rawTest, assert }) {
+    const test = (name, fn) => rawTest(name, async () => {
+        try { await fn(); } finally { cleanup(); }
+    });
 
     // ── Full Render + Interact + Assert ─────────────────────────
 
@@ -68,7 +72,7 @@ export default async function run({ test, assert }) {
 
     // ── Chain Composition ───────────────────────────────────────
 
-    await test("pipeline: chain composes React pipelines", async () => {
+    await test("pipeline: chain shares React state with inner pipeline", async () => {
         const verifyGreeting = CTGReactTest.init("verify greeting")
             .assert("has greeting", (state) =>
                 state.container.innerHTML.includes("Hello"), true);
@@ -77,7 +81,19 @@ export default async function run({ test, assert }) {
             .render("mount", React.createElement(Greeting, { name: "Chain" }))
             .chain("verify", verifyGreeting)
             .start(null);
-        assert(state.status === CTGTestResult.STATUS.PASS, "chain worked");
+        assert(state.status === CTGTestResult.STATUS.PASS, "chain shared React state");
+    });
+
+    await test("pipeline: chain also works for subject-based composition", async () => {
+        const doubleSubject = CTGReactTest.init("double")
+            .stage("double", (state) => { state.subject = state.subject * 2; return state; });
+
+        const state = await CTGReactTest.init("chain subject")
+            .stage("set", (state) => { state.subject = 5; return state; })
+            .chain("double it", doubleSubject)
+            .assert("check", (state) => state.subject, 10)
+            .start(null);
+        assert(state.status === CTGTestResult.STATUS.PASS, "chain subject worked");
     });
 
     // ── Start Returns ReactTestState ────────────────────────────

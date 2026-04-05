@@ -7,12 +7,16 @@
 // - Missing user-event dependency (INVALID_STEP error when state.user is null)
 
 import React from "react";
+import { cleanup } from "@testing-library/react";
 import CTGTestResult from "ctg-js-test/result";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import { Counter, LoginForm } from "../components.js";
 
 // :: OBJECT -> PROMISE(VOID)
-export default async function run({ test, assert }) {
+export default async function run({ test: rawTest, assert }) {
+    const test = (name, fn) => rawTest(name, async () => {
+        try { await fn(); } finally { cleanup(); }
+    });
 
     // ── Basic Interaction ───────────────────────────────────────
 
