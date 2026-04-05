@@ -5,8 +5,8 @@
 
 import React from "react";
 import CTGTestResult from "ctg-js-test/result";
-import CTGReactTest from "../../../src/CTGReactTest.js";
-import { Counter, LoginForm } from "../../components.js";
+import CTGReactTest from "../../src/CTGReactTest.js";
+import { Counter, LoginForm } from "../components.js";
 
 // :: OBJECT -> PROMISE(VOID)
 export default async function run({ test, assert }) {

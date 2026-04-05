@@ -4,7 +4,7 @@
 // fields: screen, user, container, rerender, data.
 
 import CTGTestState from "ctg-js-test/state";
-import ReactTestState from "../../../src/ReactTestState.js";
+import ReactTestState from "../../src/ReactTestState.js";
 
 // :: OBJECT -> PROMISE(VOID)
 export default async function run({ test, assert }) {

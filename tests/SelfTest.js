@@ -1,17 +1,15 @@
-// Self-tests for ctg-react-test
+// ctg-react-test v2 Self Test
 //
-// Composes test pipelines from category modules.
-// Sets up jsdom for standalone React rendering.
-// Each pipeline category is a separate module in tests/pipelines/.
+// Tests the v2 API: ReactTestState, polymorphic step types (render,
+// interact, assertSnapshot, renderHook), caller-owned cleanup.
 //
-// NOTE: This file covers standalone and formatter-unit tests only.
-// Vitest runner-level integration tests live in tests/integration/
-// and must be run separately via: npm run test:vitest
-// For full coverage: npm run test:all
+// Requires jsdom for DOM globals.
+// Run: node tests/v2/SelfTest.js
 
-import CTGTest from "ctg-js-test"; // Test framework
+import CTGTestConsoleFormatter from "ctg-js-test/formatter/console";
+import CTGTestResult from "ctg-js-test/result";
 
-// ── jsdom Setup (standalone DOM for React rendering) ─────────
+// ── jsdom Setup ─────────────────────────────────────────────────
 
 import { JSDOM } from "jsdom";
 const dom = new JSDOM("<!doctype html><html><body></body></html>", { url: "http://localhost" });
@@ -29,37 +27,65 @@ global.Element = dom.window.Element;
 global.Event = dom.window.Event;
 global.CustomEvent = dom.window.CustomEvent;
 
-// ── Pipeline Categories ──────────────────────────────────────
+// ── Pipeline Categories ─────────────────────────────────────────
 
-import runReactContext from "./pipelines/reactContext.js";
-import runConstruction from "./pipelines/construction.js";
-import runRendering from "./pipelines/rendering.js";
-import runInteraction from "./pipelines/interaction.js";
-import runHooks from "./pipelines/hooks.js";
-import runSnapshots from "./pipelines/snapshots.js";
-import runSafety from "./pipelines/safety.js";
-import runVitestMode from "./pipelines/vitestMode.js";
+import runReactTestState from "./pipelines/reactTestState.js";
+import runRenderStep from "./pipelines/renderStep.js";
+import runInteractStep from "./pipelines/interactStep.js";
+import runRenderHookStep from "./pipelines/renderHookStep.js";
+import runPipelineIntegration from "./pipelines/pipelineIntegration.js";
+import runResultCollection from "./pipelines/resultCollection.js";
 
-// ── Config ───────────────────────────────────────────────────
+// ── Bootstrap Harness ───────────────────────────────────────────
 
-const config = { output: "console", timeout: 0 };
+let allPassed = true;
+let totalTests = 0;
+let totalPassed = 0;
 
-// ── Run All Categories ───────────────────────────────────────
+async function test(label, fn) {
+    totalTests++;
+    try {
+        await fn();
+        totalPassed++;
+        process.stdout.write(`  PASS  ${label}\n`);
+    } catch (err) {
+        allPassed = false;
+        process.stdout.write(`  FAIL  ${label}\n`);
+        process.stdout.write(`        ${err.message}\n`);
+    }
+}
 
-process.stdout.write("=== ctg-react-test Self Test ===\n\n");
+function assert(condition, message) {
+    if (!condition) {
+        throw new Error(`Assertion failed: ${message}`);
+    }
+}
 
-await runReactContext({ config });
-await runConstruction({ config });
-await runRendering({ config });
-await runInteraction({ config });
-await runHooks({ config });
-await runSnapshots({ config });
-await runSafety({ config });
-await runVitestMode({ config });
+const harness = { test, assert };
 
-// ── Summary + Exit ───────────────────────────────────────────
+// ── Run Tests ───────────────────────────────────────────────────
 
-process.stdout.write("\n=== All tests complete ===\n");
+process.stdout.write("=== ctg-react-test v2 Self Test ===\n\n");
 
-const failed = CTGTest._results.some((r) => r.status === "fail" || r.status === "error");
-process.exit(failed ? 1 : 0);
+process.stdout.write("── ReactTestState ──\n");
+await runReactTestState(harness);
+
+process.stdout.write("\n── Render Step ──\n");
+await runRenderStep(harness);
+
+process.stdout.write("\n── Interact Step ──\n");
+await runInteractStep(harness);
+
+process.stdout.write("\n── RenderHook Step ──\n");
+await runRenderHookStep(harness);
+
+process.stdout.write("\n── Pipeline Integration ──\n");
+await runPipelineIntegration(harness);
+
+process.stdout.write("\n── Result Collection ──\n");
+await runResultCollection(harness);
+
+// ── Summary + Exit ──────────────────────────────────────────────
+
+process.stdout.write(`\n=== ${totalPassed}/${totalTests} passed ===\n`);
+process.exit(allPassed ? 0 : 1);
