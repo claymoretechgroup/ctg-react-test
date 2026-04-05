@@ -1,19 +1,19 @@
 # CTGReactTest
 
-Composable pipeline-based test class for React. Extends `CTGTest` from `ctg-js-test` with React-specific step types: render, interact, assertSnapshot, renderHook. The pipeline returns `ReactTestState` — the caller owns formatting, collection, delivery, and cleanup.
+Composable pipeline-based test class for React components. Extends `CTGTest` from `ctg-js-test`. The component is the subject — passed to `start()`, which mounts it implicitly. Pipeline steps verify the component through interactions and assertions. Cleanup runs automatically after the pipeline completes.
 
 ### Properties
 
 | Property | Type | Description |
 |----------|------|-------------|
 | _name | STRING | Pipeline name (inherited) |
-| _steps | [ctgTestStep] | Step definitions including React types (inherited) |
+| _steps | [ctgTestStep] | Step definitions (inherited) |
 
 ### Static Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| VALID_CONFIG_KEYS | [STRING] | Inherited keys + snapshotFilePath, snapshotFileUrl, updateSnapshots, createBaselines, maxSnapshotBytes |
+| VALID_CONFIG_KEYS | [STRING] | Inherited keys + wrapper, autoCleanup |
 
 ---
 
@@ -22,74 +22,101 @@ Composable pipeline-based test class for React. Extends `CTGTest` from `ctg-js-t
 Creates a new React test pipeline.
 
 ```jsx
-const test = CTGReactTest.init("my component test");
+const test = CTGReactTest.init("counter test");
 ```
 
 ---
 
-### ctgReactTest.render :: STRING, JSX|(VOID -> JSX), OBJECT? -> this
+### ctgReactTest.interact :: STRING, ({screen, user} -> VOID) -> SELF
 
-Renders a React element and populates `ReactTestState` fields (screen, user, container, rerender). Accepts a JSX element directly or a function returning JSX. Options: `{ wrapper }`. Chainable.
-
-```jsx
-test.render("mount", <MyComponent prop="value" />);
-```
-
----
-
-### ctgReactTest.interact :: STRING, (reactTestState -> reactTestState), (Error -> *)? -> this
-
-Executes a user interaction callback against state. Requires `state.user` (user-event). The callback must return `ReactTestState`. Chainable.
+Adds an interact step. The callback receives the testing-library surface for finding elements and dispatching events. VOID return — interactions are side effects. No error handler. Chainable.
 
 ```jsx
-test.interact("click submit", async (state) => {
-    await state.user.click(state.screen.getByText("Submit"));
-    return state;
+test.interact("click increment", async ({screen, user}) => {
+    await user.click(screen.getByText("Increment"));
 });
 ```
 
 ---
 
-### ctgReactTest.assertSnapshot :: STRING, JSX|(VOID -> JSX), OBJECT? -> this
+### ctgReactTest.assertComponent :: STRING, (screen -> *), * -> SELF
 
-Renders a component via `react-test-renderer` and compares the serialized component tree against a stored JSON baseline. Requires `snapshotFilePath` or `snapshotFileUrl` in config. Chainable.
+Adds an assertComponent step. The callback receives `screen` and computes an actual value from the rendered output. The pipeline compares it to the expected value. No error handler. Chainable.
 
 ```jsx
-test.assertSnapshot("component tree", <MyComponent prop="value" />);
+test.assertComponent("count is 1", (screen) =>
+    screen.getByTestId("count").textContent, "1");
 ```
 
 ---
 
-### ctgReactTest.renderHook :: STRING, (VOID -> *), OBJECT? -> this
+### ctgReactTest.assertComponentIs :: STRING, STRING|reactTestState -> SELF
 
-Renders a hook in isolation and populates `state.data.result` with the hook return value (a ref — `result.current` reflects latest value after rerenders). Options: `{ wrapper }`. Chainable.
+Adds an assertComponentIs step. Compares the current component's rendered HTML against a STRING or a ReactTestState instance (calls `toHTML()` automatically). No error handler. Chainable.
 
 ```jsx
-test.renderHook("mount", () => useCounter(0));
+test.assertComponentIs("matches markup", "<h1>Hello, World!</h1>");
+test.assertComponentIs("same result", expectedState);
 ```
 
 ---
 
-### ctgReactTest.chain :: STRING, ctgTest -> this
+### ctgReactTest.chain :: STRING, ctgTest -> SELF
 
-Overrides `CTGTest.chain` to preserve React testing state across chained pipelines. The inner pipeline receives a separate `ReactTestState` instance with shared React field references (screen, container, user, rerender, data). Chainable.
+Overrides `CTGTest.chain` to share the testing surface (screen, user, container, rerender) with the inner pipeline. The inner pipeline runs against the same mounted component. Chainable.
 
 ```jsx
-const verifyGreeting = CTGReactTest.init("verify")
-    .assert("has text", (state) =>
-        state.container.innerHTML.includes("Hello"), true);
+const verifyCount = CTGReactTest.init("verify")
+    .assertComponent("count visible", (screen) =>
+        screen.getByTestId("count") !== null, true);
 
-test.chain("verify", verifyGreeting);
+test.chain("verify", verifyCount);
 ```
 
 ---
 
-### ctgReactTest.start :: reactTestState|*, OBJECT? -> PROMISE(reactTestState)
+### ctgReactTest.start :: JSX|reactTestState, OBJECT? -> PROMISE(reactTestState)
 
-Executes the pipeline. Wraps raw values in `ReactTestState`. Validates config and steps synchronously, then runs steps async. Returns `ReactTestState`. The caller owns cleanup and formatting.
+Executes the pipeline. If JSX is passed, wraps in ReactTestState and mounts via `@testing-library/react.render()`. If ReactTestState (from chain), skips mounting. Runs cleanup automatically after all steps complete unless `autoCleanup: false`. Returns ReactTestState.
 
 ```jsx
-const state = await test.start(null);
+const state = await test.start(<Counter initial={0} />);
+```
+
+---
+
+### CTGReactTest.toSnapshot :: JSX -> PROMISE(OBJECT)
+
+Static. Renders JSX through `react-test-renderer` and returns the JSON tree. Fresh, isolated render — no internal state.
+
+```jsx
+const tree = await CTGReactTest.toSnapshot(<Counter initial={0} />);
+```
+
+---
+
+### CTGReactTest.diffSnapshot :: JSX, JSX -> PROMISE([OBJECT])
+
+Static. Renders both JSX elements and returns an array of structural differences. Each entry has `{path, expected, actual}`. Returns empty array if trees match.
+
+```jsx
+const diffs = await CTGReactTest.diffSnapshot(
+    <Counter initial={0} />,
+    <Counter initial={1} />
+);
+```
+
+---
+
+### CTGReactTest.compareSnapshot :: JSX, JSX -> PROMISE(BOOL)
+
+Static. Convenience over `diffSnapshot`. Returns true if no differences.
+
+```jsx
+const match = await CTGReactTest.compareSnapshot(
+    <Counter initial={0} />,
+    <Counter initial={0} />
+);
 ```
 
 ---
