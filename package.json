@@ -1,6 +1,6 @@
 {
     "name": "ctg-react-test",
-    "version": "1.0.0",
+    "version": "2.0.0",
     "description": "Composable pipeline-based testing for React, extending ctg-js-test",
     "type": "module",
     "exports": {
@@ -17,24 +17,22 @@
         "@testing-library/user-event": ">=14.0.0",
         "react": ">=18.0.0",
         "react-dom": ">=18.0.0",
-        "vitest": ">=1.0.0"
+        "react-test-renderer": ">=18.0.0"
     },
     "peerDependenciesMeta": {
-        "vitest": {
+        "@testing-library/user-event": {
             "optional": true
         },
-        "@testing-library/user-event": {
+        "react-test-renderer": {
             "optional": true
         }
     },
     "devDependencies": {
-        "@playwright/test": "^1.40.0",
         "@testing-library/react": "^14.0.0",
         "@testing-library/user-event": "^14.0.0",
         "jsdom": "^24.0.0",
         "react": "^18.0.0",
         "react-dom": "^18.0.0",
-        "react-test-renderer": "^18.3.1",
-        "vitest": "^4.0.0"
+        "react-test-renderer": "^18.3.1"
     }
 }

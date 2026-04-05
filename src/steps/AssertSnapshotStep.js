@@ -4,6 +4,7 @@ import { fileURLToPath } from "node:url"; // URL to path conversion
 
 import CTGTestStep from "ctg-js-test/step"; // Abstract step base
 import CTGTestError from "ctg-js-test/error"; // Typed errors
+import CTGTestResult from "ctg-js-test/result"; // Status enum
 
 // AssertSnapshot step — renders a component via react-test-renderer,
 // serializes to JSON, and compares against a stored baseline.
@@ -124,11 +125,13 @@ export default class AssertSnapshotStep extends CTGTestStep {
                 this._resolvedExpected = tree;
                 return state;
             }
-            // No baseline and createBaselines false: comparison fail.
-            // Set actual to tree, expected to null — pipeline comparison
-            // produces fail with "expected null but got ..." message.
+            // No baseline and createBaselines false: signal fail with
+            // specific message. Pipeline reads _lastStepStatus FAIL
+            // and records with step's message, bypassing comparison.
             state.actual = tree;
-            this._resolvedExpected = null;
+            state._lastStepStatus = CTGTestResult.STATUS.FAIL;
+            state._lastStepMessage = "No baseline found and createBaselines is false";
+            this._resolvedExpected = tree; // match actual to avoid double failure
             return state;
         }
 

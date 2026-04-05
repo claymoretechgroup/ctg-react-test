@@ -99,6 +99,8 @@ export default async function run({ test: rawTest, assert }) {
                     haltOnFailure: false
                 });
             assert(state.status === CTGTestResult.STATUS.FAIL, "missing baseline fails");
+            const result = state.results.find((r) => r.name === "greeting");
+            assert(result.message.includes("createBaselines"), "message mentions createBaselines");
         } finally {
             rmSync(dir, { recursive: true, force: true });
         }
