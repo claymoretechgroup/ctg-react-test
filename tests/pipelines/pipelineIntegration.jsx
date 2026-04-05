@@ -1,97 +1,157 @@
-// Pipeline integration tests — §3
+// Pipeline integration tests — §4 (v3)
+//
+// Tests start() with JSX, implicit mount, automatic cleanup,
+// chaining, config validation, inherited step types.
 
-import { cleanup } from "@testing-library/react";
 import CTGTest from "ctg-js-test";
 import CTGTestResult from "ctg-js-test/result";
 import ReactTestState from "../../src/ReactTestState.js";
 import CTGReactTest from "../../src/CTGReactTest.js";
 import { Greeting, Counter, LoginForm } from "../components.jsx";
 
-export default async function run({ test: rawTest, assert }) {
-    const test = (name, fn) => rawTest(name, async () => {
-        try { await fn(); } finally { cleanup(); }
+export default async function run({ test, assert }) {
+
+    // ── start() Mounts Component ────────────────────────────────
+
+    await test("pipeline: start receives JSX and mounts", async () => {
+        const state = await CTGReactTest.init("start mount")
+            .assertComponent("rendered", (screen) =>
+                screen.getByRole("heading").textContent, "Hello, World!")
+            .start(<Greeting name="World" />);
+        assert(state.status === CTGTestResult.STATUS.PASS, "component mounted");
     });
 
-    await test("pipeline: render, interact, assert flow", async () => {
-        const state = await CTGReactTest.init("full flow")
-            .render("mount counter", <Counter />)
-            .interact("click increment", async (state) => {
-                await state.user.click(state.screen.getByText("Increment"));
-                return state;
+    await test("pipeline: start returns ReactTestState", async () => {
+        const state = await CTGReactTest.init("start type")
+            .start(<Greeting name="X" />);
+        assert(state instanceof ReactTestState, "returns ReactTestState");
+    });
+
+    await test("pipeline: state.subject holds the JSX element", async () => {
+        const element = <Greeting name="Subject" />;
+        const state = await CTGReactTest.init("start subject")
+            .start(element);
+        assert(state.subject !== null, "subject set");
+    });
+
+    await test("pipeline: screen and user populated after mount", async () => {
+        let hasScreen = false;
+        let hasUser = false;
+        await CTGReactTest.init("mount surface")
+            .interact("check surface", ({screen, user}) => {
+                hasScreen = screen !== null;
+                hasUser = user !== null;
             })
-            .assert("count is 1", (state) =>
-                state.screen.getByTestId("count").textContent, "1")
-            .start(null);
+            .start(<Counter />);
+        assert(hasScreen, "screen populated");
+        assert(hasUser, "user populated");
+    });
+
+    // ── Automatic Cleanup ───────────────────────────────────────
+
+    await test("pipeline: cleanup runs automatically after start", async () => {
+        await CTGReactTest.init("cleanup auto")
+            .assertComponent("mounted", (screen) =>
+                screen.getByRole("heading") !== null, true)
+            .start(<Greeting name="Cleanup" />);
+        // If cleanup didn't run, next test would see stale DOM
+        // Run another pipeline — should mount fresh
+        const state = await CTGReactTest.init("cleanup verify")
+            .assertComponent("fresh mount", (screen) =>
+                screen.getByRole("heading").textContent, "Hello, Fresh!")
+            .start(<Greeting name="Fresh" />);
+        assert(state.status === CTGTestResult.STATUS.PASS, "fresh mount after cleanup");
+    });
+
+    await test("pipeline: autoCleanup false preserves mounted component", async () => {
+        const state = await CTGReactTest.init("no cleanup")
+            .start(<Greeting name="Preserved" />, { autoCleanup: false });
+        const html = state.toHTML();
+        assert(html.includes("Preserved"), "component still mounted");
+        // Manual cleanup
+        const { cleanup } = await import("@testing-library/react");
+        cleanup();
+    });
+
+    // ── Wrapper Config ──────────────────────────────────────────
+
+    await test("pipeline: wrapper config wraps component", async () => {
+        function Wrapper({children}) {
+            return <div data-testid="wrapper">{children}</div>;
+        }
+        const state = await CTGReactTest.init("wrapper test")
+            .assertComponent("wrapped", (screen) =>
+                screen.getByTestId("wrapper") !== null, true)
+            .start(<Greeting name="Wrapped" />, { wrapper: Wrapper });
+        assert(state.status === CTGTestResult.STATUS.PASS, "wrapper applied");
+    });
+
+    // ── Full Interact + AssertDOM Flow ──────────────────────────
+
+    await test("pipeline: interact then assertComponent flow", async () => {
+        const state = await CTGReactTest.init("full flow")
+            .interact("click increment", async ({screen, user}) => {
+                await user.click(screen.getByText("Increment"));
+            })
+            .assertComponent("count is 1", (screen) =>
+                screen.getByTestId("count").textContent, "1")
+            .start(<Counter />);
         assert(state.status === CTGTestResult.STATUS.PASS, "full flow passed");
     });
 
-    await test("pipeline: stage works in React pipeline", async () => {
+    // ── Inherited Stage ─────────────────────────────────────────
+
+    await test("pipeline: inherited stage works", async () => {
         const state = await CTGReactTest.init("stage test")
-            .render("mount", <Greeting name="X" />)
-            .stage("extract text", (state) => {
-                state.subject = state.container.textContent;
+            .stage("set subject", (state) => {
+                state.subject = "modified";
                 return state;
             })
-            .assert("text extracted", (state) => state.subject, "Hello, X!")
-            .start(null);
+            .assert("subject changed", (state) => state.subject, "modified")
+            .start(<Greeting name="X" />);
         assert(state.status === CTGTestResult.STATUS.PASS, "stage worked");
     });
 
-    await test("pipeline: assert reads from state directly", async () => {
-        const state = await CTGReactTest.init("assert state")
-            .render("mount", <Counter initial={5} />)
-            .assert("count displayed", (state) =>
-                state.screen.getByTestId("count").textContent, "5")
-            .start(null);
-        assert(state.status === CTGTestResult.STATUS.PASS, "assert on state");
-    });
+    // ── Inherited Skip ──────────────────────────────────────────
 
-    await test("pipeline: skip works in React pipeline", async () => {
+    await test("pipeline: inherited skip works", async () => {
         const state = await CTGReactTest.init("skip test")
-            .render("mount", <Greeting name="X" />)
             .skip("skip check", "expensive check")
-            .assert("expensive check", (state) => state.container.innerHTML, "wrong")
-            .start(null);
+            .assertComponent("expensive check", (screen) =>
+                screen.getByRole("heading").textContent, "wrong")
+            .start(<Greeting name="X" />);
         const skipped = state.results.find((r) => r.name === "expensive check");
         assert(skipped.status === CTGTestResult.STATUS.SKIP, "step was skipped");
     });
 
-    await test("pipeline: chain shares React state with inner pipeline", async () => {
-        const verifyGreeting = CTGReactTest.init("verify greeting")
-            .assert("has greeting", (state) =>
-                state.container.innerHTML.includes("Hello"), true);
+    // ── Chaining ────────────────────────────────────────────────
+
+    await test("pipeline: chain shares testing surface", async () => {
+        const verifyGreeting = CTGReactTest.init("verify")
+            .assertComponent("has greeting", (screen) =>
+                screen.getByRole("heading").textContent.includes("Hello"), true);
+
         const state = await CTGReactTest.init("chain test")
-            .render("mount", <Greeting name="Chain" />)
-            .chain("verify", verifyGreeting)
-            .start(null);
-        assert(state.status === CTGTestResult.STATUS.PASS, "chain shared React state");
+            .chain("verify greeting", verifyGreeting)
+            .start(<Greeting name="Chain" />);
+        assert(state.status === CTGTestResult.STATUS.PASS, "chain shared surface");
     });
 
-    await test("pipeline: chain also works for subject-based composition", async () => {
-        const doubleSubject = CTGReactTest.init("double")
-            .stage("double", (state) => { state.subject = state.subject * 2; return state; });
-        const state = await CTGReactTest.init("chain subject")
-            .stage("set", (state) => { state.subject = 5; return state; })
-            .chain("double it", doubleSubject)
-            .assert("check", (state) => state.subject, 10)
-            .start(null);
-        assert(state.status === CTGTestResult.STATUS.PASS, "chain subject worked");
+    await test("pipeline: chain sees interact changes", async () => {
+        const verifyCount = CTGReactTest.init("verify count")
+            .assertComponent("count is 1", (screen) =>
+                screen.getByTestId("count").textContent, "1");
+
+        const state = await CTGReactTest.init("chain after interact")
+            .interact("click", async ({screen, user}) => {
+                await user.click(screen.getByText("Increment"));
+            })
+            .chain("verify", verifyCount)
+            .start(<Counter />);
+        assert(state.status === CTGTestResult.STATUS.PASS, "chain sees changes");
     });
 
-    await test("pipeline: start returns ReactTestState", async () => {
-        const state = await CTGReactTest.init("return type")
-            .render("mount", <Greeting name="X" />)
-            .start(null);
-        assert(state instanceof ReactTestState, "returns ReactTestState");
-    });
-
-    await test("pipeline: start wraps raw subject in ReactTestState", async () => {
-        const state = await CTGReactTest.init("wrap subject")
-            .stage("noop", (state) => state)
-            .start(42);
-        assert(state instanceof ReactTestState, "wrapped in ReactTestState");
-        assert(state.subject === 42, "subject preserved");
-    });
+    // ── init Factory ────────────────────────────────────────────
 
     await test("pipeline: init returns CTGReactTest instance", () => {
         const pipeline = CTGReactTest.init("factory test");
@@ -99,19 +159,13 @@ export default async function run({ test: rawTest, assert }) {
         assert(pipeline instanceof CTGTest, "is CTGTest");
     });
 
-    await test("pipeline: accepts snapshotFilePath config", async () => {
-        const state = await CTGReactTest.init("config test")
-            .stage("noop", (state) => state)
-            .start(null, { snapshotFilePath: "/tmp/test.snap.json" });
-        assert(state.status === CTGTestResult.STATUS.PASS, "config accepted");
-    });
+    // ── Removed Config Keys ─────────────────────────────────────
 
     await test("pipeline: output config key rejected", async () => {
         let threw = false;
         try {
             await CTGReactTest.init("bad config")
-                .stage("noop", (state) => state)
-                .start(null, { output: "console" });
+                .start(<Greeting name="X" />, { output: "console" });
         } catch { threw = true; }
         assert(threw, "output rejected");
     });
@@ -120,15 +174,35 @@ export default async function run({ test: rawTest, assert }) {
         let threw = false;
         try {
             await CTGReactTest.init("bad config")
-                .stage("noop", (state) => state)
-                .start(null, { formatter: null });
+                .start(<Greeting name="X" />, { formatter: null });
         } catch { threw = true; }
         assert(threw, "formatter rejected");
     });
 
+    // ── Removed Methods ─────────────────────────────────────────
+
+    await test("pipeline: render method does not exist", () => {
+        const pipeline = CTGReactTest.init("no render");
+        assert(pipeline.render === undefined, "render removed");
+    });
+
+    await test("pipeline: renderHook method does not exist", () => {
+        const pipeline = CTGReactTest.init("no renderHook");
+        assert(pipeline.renderHook === undefined, "renderHook removed");
+    });
+
+    await test("pipeline: assertSnapshot method does not exist", () => {
+        const pipeline = CTGReactTest.init("no assertSnapshot");
+        assert(pipeline.assertSnapshot === undefined, "assertSnapshot removed");
+    });
+
+    // ── No Static State ─────────────────────────────────────────
+
     await test("pipeline: no static _results", () => {
         assert(CTGReactTest._results === undefined, "no _results");
     });
+
+    // ── No stdout ───────────────────────────────────────────────
 
     await test("pipeline: start does not write to stdout", async () => {
         const origWrite = process.stdout.write;
@@ -136,40 +210,19 @@ export default async function run({ test: rawTest, assert }) {
         process.stdout.write = () => { written = true; return true; };
         try {
             await CTGReactTest.init("silent")
-                .render("mount", <Greeting name="X" />)
-                .start(null);
+                .start(<Greeting name="X" />);
         } finally {
             process.stdout.write = origWrite;
         }
         assert(!written, "nothing written");
     });
 
-    await test("pipeline: assertAny works in React pipeline", async () => {
-        const state = await CTGReactTest.init("assertAny test")
-            .render("mount", <Counter initial={5} />)
-            .assertAny("count in range", (state) =>
-                state.screen.getByTestId("count").textContent, ["4", "5", "6"])
-            .start(null);
-        assert(state.status === CTGTestResult.STATUS.PASS, "assertAny matched");
-    });
-
-    await test("pipeline: interact before render errors (no user)", async () => {
-        const state = await CTGReactTest.init("interact no render")
-            .interact("click", async (state) => {
-                await state.user.click(state.screen.getByText("X"));
-                return state;
-            })
-            .start(null, { haltOnFailure: false });
-        const result = state.results.find((r) => r.name === "click");
-        assert(result.status === CTGTestResult.STATUS.ERROR, "error without render");
-    });
+    // ── Empty Name Validation ───────────────────────────────────
 
     await test("pipeline: empty pipeline name fails validation", async () => {
         let threw = false;
         try {
-            await CTGReactTest.init("")
-                .render("mount", <Greeting name="X" />)
-                .start(null);
+            await CTGReactTest.init("").start(<Greeting name="X" />);
         } catch { threw = true; }
         assert(threw, "empty name threw");
     });
@@ -178,9 +231,9 @@ export default async function run({ test: rawTest, assert }) {
         let threw = false;
         try {
             await CTGReactTest.init("dupe names")
-                .render("mount", <Greeting name="A" />)
-                .render("mount", <Greeting name="B" />)
-                .start(null);
+                .assertComponent("check", (screen) => true, true)
+                .assertComponent("check", (screen) => true, true)
+                .start(<Greeting name="X" />);
         } catch { threw = true; }
         assert(threw, "duplicate names threw");
     });

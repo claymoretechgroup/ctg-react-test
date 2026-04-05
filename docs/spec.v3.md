@@ -22,15 +22,13 @@ v3 reframes the pipeline around how React components are actually tested:
    and assertions.
 2. **Implicit mount** — `start()` mounts the component before running any
    steps. Render config (wrapper, etc.) is passed through the config object.
-3. **Two React-specific step types** — `interact` and `assertDOM` — for
-   dispatching events and verifying rendered output.
-4. **assertHTML** — for comparing rendered HTML between component states,
-   including staged pipeline results.
-5. **Static snapshot utilities** — `toSnapshot` and `compareSnapshot` for
-   structural comparison of JSX elements outside the pipeline.
-6. **No error handlers on React steps** — errors are errors. Consistent
+3. **Three React-specific methods** — `interact`, `assertComponent`,
+   `assertComponentIs` — each with a single clear signature.
+4. **Static snapshot utilities** — `toSnapshot`, `diffSnapshot`,
+   `compareSnapshot` for structural comparison outside the pipeline.
+5. **No error handlers on React steps** — errors are errors. Consistent
    across all React-specific steps.
-7. **assert is inherited but not primary** — still available from ctg-js-test
+6. **assert is inherited but not primary** — still available from ctg-js-test
    for pipeline state evaluation, but React testing uses the React-specific
    methods.
 
@@ -66,14 +64,14 @@ interaction, they catch inside the callback itself. This is a departure
 from ctg-js-test's error handler semantics on stage/assert — see README
 considerations.
 
-### assertDOM — verify presentation via query
+### assertComponent — verify presentation via query
 
 Verifies what the user sees via testing-library DOM queries. The callback
-receives `screen` — the query interface — and computes an actual value
-from the rendered output. The pipeline compares it to an expected value.
+receives `screen` and computes an actual value from the rendered output.
+The pipeline compares it to an expected value.
 
 ```jsx
-.assertDOM("count is 1", (screen) =>
+.assertComponent("count is 1", (screen) =>
     screen.getByTestId("count").textContent, "1")
 ```
 
@@ -81,52 +79,41 @@ from the rendered output. The pipeline compares it to an expected value.
 user after interactions. Uses testing-library queries (by role, text, label,
 testid) — not direct DOM inspection like `container.innerHTML`.
 
-**Callback signature:** `(screen) -> *`
+**Signature:** `assertComponent(name, callback, expected)`
+- `name` — STRING, step name
+- `callback` — `(screen) -> *`, computes actual value
+- `expected` — `*`, value to compare against
 
-The callback only needs `screen` to query the rendered output — it does
-not interact with the component, so `user` is not provided. Async
-callbacks are supported (e.g., `findBy*` queries).
+Async callbacks are supported (e.g., `findBy*` queries).
 
 **Error handling:** No error handler parameter. Same rationale as interact
-— in React testing, if a query fails, the test should fail. Consistent
-across all React-specific steps.
+— in React testing, if a query fails, the test should fail.
 
-### assertHTML — verify rendered HTML
+### assertComponentIs — verify rendered HTML
 
 Compares the current mounted component's rendered HTML against an expected
-HTML representation. Accepts either a STRING or a ReactTestState instance
-(from another pipeline). If a ReactTestState is passed, `toHTML()` is called
-on it automatically before comparison.
+value. Accepts either a STRING or a ReactTestState instance. If a
+ReactTestState is passed, `toHTML()` is called on it automatically before
+comparison.
 
 ```jsx
+// Compare against an HTML string
+.assertComponentIs("matches markup", "<h1>Hello, World!</h1>")
+
 // Compare against a staged pipeline result
-const expected = await CTGReactTest.init("expected")
-    .interact("click three times", async ({screen, user}) => {
-        await user.click(screen.getByText("Increment"));
-        await user.click(screen.getByText("Increment"));
-        await user.click(screen.getByText("Increment"));
-    })
-    .start(<Counter initial={0} />, { autoCleanup: false });
-
-await CTGReactTest.init("counter test")
-    .interact("different path", async ({screen, user}) => { ... })
-    .assertHTML("same result", expected)
-    .start(<Counter initial={0} />);
-
-// Compare against a raw HTML string
-await CTGReactTest.init("test")
-    .assertHTML("matches markup", "<div><span>3</span></div>")
-    .start(<Counter initial={3} />);
+.assertComponentIs("same result", expectedState)
 ```
 
-**Purpose:** Compare the rendered HTML of two components that have been
-through different interaction paths. Useful for verifying that different
-interaction sequences produce the same rendered output.
+**Purpose:** Compare the rendered HTML of the current component against
+a known HTML string or the rendered output of another pipeline.
 
-**How it works:**
-1. Call `toHTML()` on the current state to get the mounted component's HTML
-2. If the expected value is a ReactTestState, call `toHTML()` on it
-3. Compare the two HTML strings
+**Signature:** `assertComponentIs(name, expected)`
+- `name` — STRING, step name
+- `expected` — STRING or ReactTestState
+
+If `expected` is a ReactTestState, `toHTML()` is called on it. Then the
+current component's HTML (via `toHTML()` on the current state) is compared
+against the expected HTML string.
 
 **Error handling:** No error handler parameter. Consistent with other
 React-specific steps.
@@ -148,7 +135,7 @@ const html = state.toHTML(); // STRING
 ```
 
 **Purpose:** Lift the DOM representation of a modified mounted component
-out of the pipeline for comparison via `assertHTML`.
+out of the pipeline for comparison via `assertComponentIs`.
 
 **Note:** Requires `autoCleanup: false` if called after the pipeline
 completes, since cleanup unmounts the component.
@@ -215,10 +202,10 @@ const match = CTGReactTest.compareSnapshot(
 
 ## 4. Pipeline Model
 
-A React component test follows a mount → interact → assertDOM cycle:
+A React component test follows a mount → interact → assertComponent cycle:
 
 ```
-start(<Component />) → interact → assertDOM → interact → assertDOM → ...
+start(<Component />) → interact → assertComponent → interact → assertComponent → ...
 ```
 
 ### start() receives the component
@@ -228,7 +215,7 @@ const state = await CTGReactTest.init("counter")
     .interact("click increment", async ({screen, user}) => {
         await user.click(screen.getByText("Increment"));
     })
-    .assertDOM("count is 1", (screen) =>
+    .assertComponent("count is 1", (screen) =>
         screen.getByTestId("count").textContent, "1")
     .start(<Counter initial={0} />);
 ```
@@ -268,7 +255,7 @@ the same mounted component — no re-mounting.
 
 ```jsx
 const verifyCount = CTGReactTest.init("verify")
-    .assertDOM("count visible", (screen) =>
+    .assertComponent("count visible", (screen) =>
         screen.getByTestId("count") !== null, true);
 
 await CTGReactTest.init("counter")
@@ -276,7 +263,7 @@ await CTGReactTest.init("counter")
         await user.click(screen.getByText("Increment"));
     })
     .chain("verify count exists", verifyCount)
-    .assertDOM("count is 1", (screen) =>
+    .assertComponent("count is 1", (screen) =>
         screen.getByTestId("count").textContent, "1")
     .start(<Counter initial={0} />);
 ```
@@ -291,7 +278,7 @@ await CTGReactTest.init("counter behavior")
     .interact("click increment", async ({screen, user}) => {
         await user.click(screen.getByText("Increment"));
     })
-    .assertDOM("count updated", (screen) =>
+    .assertComponent("count updated", (screen) =>
         screen.getByTestId("count").textContent, "1")
     .start(<Counter initial={0} />);
 ```
@@ -309,7 +296,7 @@ await CTGReactTest.init("counter test")
     .interact("different path", async ({screen, user}) => {
         // some other interaction sequence
     })
-    .assertHTML("same result", expected)
+    .assertComponentIs("same result", expected)
     .start(<Counter initial={0} />);
 ```
 
@@ -335,8 +322,9 @@ These are inherited from ctg-js-test and remain available:
 - **skip** — conditionally skip steps
 
 These are not the primary tools for React component testing. React tests
-use interact/assertDOM/assertHTML. The inherited steps are available for
-edge cases — e.g., `stage` to set up test data on state before interactions.
+use interact/assertComponent/assertComponentIs. The inherited steps are
+available for edge cases — e.g., `stage` to set up test data on state
+before interactions.
 
 ---
 
@@ -360,7 +348,7 @@ await CTGReactTest.init("cross-component")
     .interact("click incrementer", async ({screen, user}) => {
         await user.click(screen.getByText("+"));
     })
-    .assertDOM("display updated", (screen) =>
+    .assertComponent("display updated", (screen) =>
         screen.getByTestId("display").textContent, "1")
     .start(<Container />);
 ```
@@ -377,7 +365,7 @@ are passed through the config object:
 
 ```jsx
 await CTGReactTest.init("themed component")
-    .assertDOM("has theme", (screen) =>
+    .assertComponent("has theme", (screen) =>
         screen.getByTestId("theme").textContent, "dark")
     .start(<MyComponent />, { wrapper: ThemeProvider });
 ```
@@ -395,8 +383,8 @@ Config keys needed:
 
 Hooks are tested through the components that use them. If a hook drives
 a state change, the component renders the result — verify it with
-`assertDOM`. Direct hook testing (renderHook, result.current) is not
-supported in v3.
+`assertComponent`. Direct hook testing (renderHook, result.current) is
+not supported in v3.
 
 For hooks that don't produce visible output (e.g., WebSocket management,
 caching), the developer writes a thin test component that renders the
@@ -411,29 +399,29 @@ This is a README consideration, not an API concern.
 ### Naming ambiguity
 
 "State" ambiguity (pipeline state vs React component state) is resolved
-by the step types. React tests use interact/assertDOM/assertHTML — the
-callback parameters are testing-library concepts (`screen`, `user`), not
-pipeline state. The developer is never inspecting React component state
-directly.
+by the step types. React tests use interact/assertComponent/assertComponentIs
+— the callback parameters are testing-library concepts (`screen`, `user`),
+not pipeline state. The developer is never inspecting React component
+state directly.
 
 ### Error handling
 
-No error handlers on any React-specific step (interact, assertDOM,
-assertHTML). In React testing, errors are errors — a missing element or
-a failed interaction is a test failure, not something to recover from.
-This is a departure from ctg-js-test's error handler semantics on
-stage/assert. The inherited steps (stage, assert, assertAny) retain
-their error handlers. This divergence is a README consideration — the
-React testing domain does not map cleanly to recovery semantics.
+No error handlers on any React-specific step (interact, assertComponent,
+assertComponentIs). In React testing, errors are errors — a missing
+element or a failed interaction is a test failure, not something to
+recover from. This is a departure from ctg-js-test's error handler
+semantics on stage/assert. The inherited steps (stage, assert, assertAny)
+retain their error handlers. This divergence is a README consideration —
+the React testing domain does not map cleanly to recovery semantics.
 
-### Assertion naming convention
+### Assertion methods
 
-All verification steps use the `assert*` prefix for consistency:
+Two assertion methods with distinct, non-overloaded signatures:
 
-| Method | Input | Compares | Mechanism |
-|--------|-------|----------|-----------|
-| assertDOM | Callback + expected value | DOM query result vs expected | testing-library |
-| assertHTML | STRING or ReactTestState | Rendered HTML vs rendered HTML | toHTML() |
+| Method | Signature | Purpose |
+|--------|-----------|---------|
+| assertComponent | (name, callback, expected) | Query DOM via screen, compare result to expected |
+| assertComponentIs | (name, expected) | Compare rendered HTML to STRING or ReactTestState |
 
 Static utilities for structural comparison:
 
@@ -469,17 +457,17 @@ the component tree looks like for given props).
 - **render() removed** — component mounting is handled by `start()`
 - **assertSnapshot removed** — replaced by static `compareSnapshot`/`toSnapshot`
 - **renderHook removed** — hooks tested through components or ctg-js-test
-- **assertDOM added** — presentation verification via testing-library queries
-- **assertHTML added** — rendered HTML comparison between component states
+- **assertComponent added** — query DOM via screen callback, compare to expected
+- **assertComponentIs added** — compare rendered HTML to STRING or ReactTestState
 - **toHTML() added** — on ReactTestState, serializes mounted component HTML
 - **toSnapshot() added** — static, serializes JSX to react-test-renderer tree
-- **diffSnapshot() added** — static, returns array of differences between two JSX trees
+- **diffSnapshot() added** — static, returns differences between two JSX trees
 - **compareSnapshot() added** — static, convenience over diffSnapshot, returns boolean
-- **No error handlers on React steps** — interact, assertDOM, assertHTML
+- **No error handlers on React steps** — interact, assertComponent, assertComponentIs
 - **Automatic cleanup** — start() runs RTL cleanup after pipeline completes
 - **autoCleanup config** — opt out for staged comparison patterns
 - **No file-backed snapshots** — snapshot comparison is inline via static methods
 - **Snapshot config keys removed** — snapshotFilePath, snapshotFileUrl,
   updateSnapshots, createBaselines, maxSnapshotBytes no longer needed
 - **interact callback change** — receives `{screen, user}`, VOID return
-- **assertDOM callback change** — receives `screen`, no pipeline state
+- **assertComponent callback** — receives `screen`, no pipeline state

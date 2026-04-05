@@ -1,10 +1,10 @@
-// ctg-react-test v2 Self Test
+// ctg-react-test v3 Self Test
 //
-// Tests the v2 API: ReactTestState, polymorphic step types (render,
-// interact, assertSnapshot, renderHook), caller-owned cleanup.
+// Tests the v3 API: component-as-subject, implicit mount, interact,
+// assertDOM, assertHTML, static snapshot methods, automatic cleanup.
 //
 // Requires jsdom for DOM globals.
-// Run: node tests/v2/SelfTest.js
+// Run: node --import ./src/JSXLoader.js tests/SelfTest.js
 
 import CTGTestConsoleFormatter from "ctg-js-test/formatter/console";
 import CTGTestResult from "ctg-js-test/result";
@@ -30,10 +30,10 @@ global.CustomEvent = dom.window.CustomEvent;
 // ── Pipeline Categories ─────────────────────────────────────────
 
 import runReactTestState from "./pipelines/reactTestState.js";
-import runRenderStep from "./pipelines/renderStep.jsx";
 import runInteractStep from "./pipelines/interactStep.jsx";
-import runRenderHookStep from "./pipelines/renderHookStep.js";
-import runAssertSnapshotStep from "./pipelines/assertSnapshotStep.jsx";
+import runAssertComponentStep from "./pipelines/assertComponentStep.jsx";
+import runAssertComponentIsStep from "./pipelines/assertComponentIsStep.jsx";
+import runSnapshotMethods from "./pipelines/snapshotMethods.jsx";
 import runPipelineIntegration from "./pipelines/pipelineIntegration.jsx";
 import runResultCollection from "./pipelines/resultCollection.jsx";
 
@@ -66,22 +66,22 @@ const harness = { test, assert };
 
 // ── Run Tests ───────────────────────────────────────────────────
 
-process.stdout.write("=== ctg-react-test v2 Self Test ===\n\n");
+process.stdout.write("=== ctg-react-test v3 Self Test ===\n\n");
 
 process.stdout.write("── ReactTestState ──\n");
 await runReactTestState(harness);
 
-process.stdout.write("\n── Render Step ──\n");
-await runRenderStep(harness);
-
 process.stdout.write("\n── Interact Step ──\n");
 await runInteractStep(harness);
 
-process.stdout.write("\n── RenderHook Step ──\n");
-await runRenderHookStep(harness);
+process.stdout.write("\n── AssertComponent Step ──\n");
+await runAssertComponentStep(harness);
 
-process.stdout.write("\n── AssertSnapshot Step ──\n");
-await runAssertSnapshotStep(harness);
+process.stdout.write("\n── AssertComponentIs Step ──\n");
+await runAssertComponentIsStep(harness);
+
+process.stdout.write("\n── Snapshot Methods ──\n");
+await runSnapshotMethods(harness);
 
 process.stdout.write("\n── Pipeline Integration ──\n");
 await runPipelineIntegration(harness);
