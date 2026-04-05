@@ -124,9 +124,11 @@ export default class AssertSnapshotStep extends CTGTestStep {
                 this._resolvedExpected = tree;
                 return state;
             }
-            // No baseline and createBaselines false: fail
+            // No baseline and createBaselines false: comparison fail.
+            // Set actual to tree, expected to null — pipeline comparison
+            // produces fail with "expected null but got ..." message.
             state.actual = tree;
-            this._resolvedExpected = "__NO_BASELINE__";
+            this._resolvedExpected = null;
             return state;
         }
 
@@ -151,7 +153,7 @@ export default class AssertSnapshotStep extends CTGTestStep {
             const dir = dirname(fileURLToPath(config.snapshotFileUrl));
             return join(dir, "__snapshots__",
                 basename(fileURLToPath(config.snapshotFileUrl))
-                    .replace(/\.js$/, ".snap.json"));
+                    .replace(/\.(js|mjs|ts|tsx|jsx)$/, ".snap.json"));
         }
         throw new CTGTestError("INVALID_CONFIG",
             "snapshotFilePath or snapshotFileUrl required for assertSnapshot");

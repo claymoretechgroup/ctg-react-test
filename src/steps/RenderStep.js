@@ -35,10 +35,14 @@ export default class RenderStep extends CTGTestStep {
      */
 
     // :: VOID -> VOID
-    // Validates that name is non-empty.
+    // Validates that name is non-empty and element is provided.
     validate() {
         if (this._name.trim().length === 0) {
             throw new CTGTestError("INVALID_STEP", "Step name must not be empty");
+        }
+        if (this._element === undefined || this._element === null) {
+            throw new CTGTestError("INVALID_STEP",
+                "Render step requires an element");
         }
     }
 
