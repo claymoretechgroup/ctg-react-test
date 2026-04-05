@@ -15,4 +15,18 @@ export default class ReactTestState extends CTGTestState {
         this.rerender = null;
         this.data = {};
     }
+
+    /**
+     *
+     * Instance Methods
+     *
+     */
+
+    // :: VOID -> STRING
+    // Returns the rendered HTML from the mounted component's container.
+    // Returns empty string if container is null (component not mounted).
+    toHTML() {
+        if (this.container === null) return "";
+        return this.container.innerHTML;
+    }
 }

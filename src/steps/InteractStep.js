@@ -1,16 +1,15 @@
 import CTGTestStep from "ctg-js-test/step"; // Abstract step base
 import CTGTestError from "ctg-js-test/error"; // Typed errors
 import CTGTestResult from "ctg-js-test/result"; // Status enum
-import ReactTestState from "../ReactTestState.js"; // State type check
 
-// Interact step — executes a user interaction callback against state.
-// Requires state.user (user-event) to be available.
+// Interact step — dispatches user events to the mounted component.
+// Callback receives {screen, user}, returns VOID. No error handler.
 export default class InteractStep extends CTGTestStep {
 
-    // CONSTRUCTOR :: STRING, (reactTestState -> reactTestState), (Error -> *)? -> this
-    // Creates an interact step with a name, callback, and optional error handler.
-    constructor(name, fn, errorHandler = null) {
-        super("interact", name, { errorHandler });
+    // CONSTRUCTOR :: STRING, ({screen, user}) -> VOID -> this
+    // Creates an interact step with a name and callback.
+    constructor(name, fn) {
+        super("interact", name);
         this._fn = fn;
     }
 
@@ -20,7 +19,7 @@ export default class InteractStep extends CTGTestStep {
      *
      */
 
-    // GETTER :: VOID -> (reactTestState -> reactTestState)
+    // GETTER :: VOID -> ({screen, user}) -> VOID
     // Returns the interaction callback.
     get fn() { return this._fn; }
 
@@ -47,8 +46,8 @@ export default class InteractStep extends CTGTestStep {
     }
 
     // :: reactTestState -> PROMISE(reactTestState)
-    // Validates user-event is available, calls the callback with state.
-    // Callback must return ReactTestState.
+    // Validates user-event is available, calls the callback with {screen, user}.
+    // Callback is VOID — return value is ignored. Errors set status on state.
     async execute(state) {
         if (state.user === null) {
             throw new CTGTestError("INVALID_STEP",
@@ -56,24 +55,9 @@ export default class InteractStep extends CTGTestStep {
         }
 
         try {
-            const result = await this._fn(state);
-            if (!(result instanceof ReactTestState)) {
-                throw new CTGTestError("INVALID_STEP",
-                    "Interact callback must return ReactTestState");
-            }
-            return result;
+            await this._fn({ screen: state.screen, user: state.user });
+            return state;
         } catch (err) {
-            if (this._errorHandler) {
-                try {
-                    await this._errorHandler(err);
-                    state._lastStepStatus = CTGTestResult.STATUS.RECOVERED;
-                    return state;
-                } catch (handlerErr) {
-                    state._lastStepStatus = CTGTestResult.STATUS.ERROR;
-                    state._lastStepMessage = handlerErr.message;
-                    return state;
-                }
-            }
             state._lastStepStatus = CTGTestResult.STATUS.ERROR;
             state._lastStepMessage = err.message;
             return state;
