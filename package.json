@@ -7,9 +7,7 @@
         ".": "./src/index.js"
     },
     "scripts": {
-        "test": "node tests/SelfTest.js",
-        "test:vitest": "vitest run tests/integration/",
-        "test:all": "node tests/SelfTest.js && vitest run tests/integration/"
+        "test": "node tests/SelfTest.js"
     },
     "dependencies": {
         "ctg-js-test": "claymoretechgroup/ctg-js-test"

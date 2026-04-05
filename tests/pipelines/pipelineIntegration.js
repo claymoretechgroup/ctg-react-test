@@ -1,8 +1,8 @@
 // Pipeline integration tests — §3
 //
 // Tests full pipeline flows: render + interact + assert, chaining,
-// inherited step types (stage, assert, assertAny, skip), and
-// config validation.
+// inherited step types (stage, assert, assertAny, chain, skip),
+// config validation, and negative paths.
 
 import React from "react";
 import CTGTest from "ctg-js-test";
@@ -160,5 +160,54 @@ export default async function run({ test, assert }) {
             process.stdout.write = origWrite;
         }
         assert(!written, "nothing written");
+    });
+
+    // ── Inherited AssertAny ─────────────────────────────────────
+
+    await test("pipeline: assertAny works in React pipeline", async () => {
+        const state = await CTGReactTest.init("assertAny test")
+            .render("mount", React.createElement(Counter, { initial: 5 }))
+            .assertAny("count in range", (state) =>
+                state.screen.getByTestId("count").textContent, ["4", "5", "6"])
+            .start(null);
+        assert(state.status === CTGTestResult.STATUS.PASS, "assertAny matched");
+    });
+
+    // ── Negative Paths ──────────────────────────────────────────
+
+    await test("pipeline: interact before render errors (no user)", async () => {
+        const state = await CTGReactTest.init("interact no render")
+            .interact("click", async (state) => {
+                await state.user.click(state.screen.getByText("X"));
+                return state;
+            })
+            .start(null, { haltOnFailure: false });
+        const result = state.results.find((r) => r.name === "click");
+        assert(result.status === CTGTestResult.STATUS.ERROR, "error without render");
+    });
+
+    await test("pipeline: empty pipeline name fails validation", async () => {
+        let threw = false;
+        try {
+            await CTGReactTest.init("")
+                .render("mount", React.createElement(Greeting, { name: "X" }))
+                .start(null);
+        } catch {
+            threw = true;
+        }
+        assert(threw, "empty name threw");
+    });
+
+    await test("pipeline: duplicate step names fail validation", async () => {
+        let threw = false;
+        try {
+            await CTGReactTest.init("dupe names")
+                .render("mount", React.createElement(Greeting, { name: "A" }))
+                .render("mount", React.createElement(Greeting, { name: "B" }))
+                .start(null);
+        } catch {
+            threw = true;
+        }
+        assert(threw, "duplicate names threw");
     });
 }

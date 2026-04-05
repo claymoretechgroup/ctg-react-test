@@ -33,6 +33,7 @@ import runReactTestState from "./pipelines/reactTestState.js";
 import runRenderStep from "./pipelines/renderStep.js";
 import runInteractStep from "./pipelines/interactStep.js";
 import runRenderHookStep from "./pipelines/renderHookStep.js";
+import runAssertSnapshotStep from "./pipelines/assertSnapshotStep.js";
 import runPipelineIntegration from "./pipelines/pipelineIntegration.js";
 import runResultCollection from "./pipelines/resultCollection.js";
 
@@ -78,6 +79,9 @@ await runInteractStep(harness);
 
 process.stdout.write("\n── RenderHook Step ──\n");
 await runRenderHookStep(harness);
+
+process.stdout.write("\n── AssertSnapshot Step ──\n");
+await runAssertSnapshotStep(harness);
 
 process.stdout.write("\n── Pipeline Integration ──\n");
 await runPipelineIntegration(harness);

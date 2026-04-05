@@ -2,6 +2,9 @@
 //
 // Validates that interact executes user interactions against state,
 // requires user-event, and follows stage-like error semantics.
+//
+// NOTE: Coverage gap that requires separate process/environment:
+// - Missing user-event dependency (INVALID_STEP error when state.user is null)
 
 import React from "react";
 import CTGTestResult from "ctg-js-test/result";
