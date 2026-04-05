@@ -1,7 +1,8 @@
 # CTG React Test v2 — Specification
 
 **Status:** Draft
-**Depends on:** ctg-js-test v2.0.1
+**Depends on:** ctg-js-test v2.1.0
+**Minimum Node:** 20
 
 ---
 
@@ -329,7 +330,7 @@ CTGReactTest.init("my test")
 
 ### Config
 
-Inherits CTGTest config (haltOnFailure, strict, timeout) plus:
+Inherits CTGTest config (haltOnFailure, timeout) plus:
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
@@ -440,7 +441,58 @@ they test different things.
 
 ---
 
-## 6. Open Questions
+## 6. JSX Support
+
+Test files and components under test are written as `.jsx` files. Node.js
+cannot execute JSX natively, so the framework ships a lightweight ESM loader
+hook that transforms `.jsx` imports via `esbuild` at load time.
+
+### Loader Architecture
+
+Two files in the package:
+
+- **`JSXLoader.js`** — entry point for `--import`. Registers the hook
+  via `node:module.register()`.
+- **`JSXHook.js`** — ESM loader hook. Intercepts `.jsx` file loads,
+  transforms source via `esbuild.transformSync` with `loader: "jsx"`,
+  `format: "esm"`, `jsx: "automatic"`.
+
+### Usage
+
+```
+node --import ctg-react-test/jsx-loader tests/SelfTest.js
+```
+
+Or in package.json:
+
+```json
+{
+    "scripts": {
+        "test": "node --import ctg-react-test/jsx-loader tests/SelfTest.js"
+    }
+}
+```
+
+### JSX Transform Mode
+
+Uses `jsx: "automatic"` (React 17+ JSX transform). Components do not
+need `import React from "react"` — the transform injects the JSX runtime
+import automatically.
+
+### Dependencies
+
+`esbuild` is a runtime dependency — it is required by the loader hook
+at import time. It installs as a single package plus a platform-specific
+binary (2 packages total).
+
+### Minimum Node Version
+
+Node 20+ is required. The `node:module.register()` API and `--import`
+flag are not available in earlier versions.
+
+---
+
+## 7. Open Questions
 
 ### CTGVitestFormatter
 
@@ -478,7 +530,7 @@ is produced for CI tools. Vitest integration is a usage pattern — run
 pipelines inside Vitest test files and map results to Vitest assertions.
 This is documented as an example, not a framework class.
 
-All ctg-js-test formatters (console, JSON, JUnit) work with ReactTestState
+All ctg-js-test formatters (console, JSON) work with ReactTestState
 because it extends CTGTestState. No React-specific formatters are needed.
 
 ### Removed

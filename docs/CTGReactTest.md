@@ -1,6 +1,6 @@
 # CTGReactTest
 
-Composable pipeline-based test class for React. Extends `CTGTest` from `ctg-js-test` with React-specific step types and an overridden `start()` that delegates to execution formatters.
+Composable pipeline-based test class for React. Extends `CTGTest` from `ctg-js-test` with React-specific step types: render, interact, assertSnapshot, renderHook. The pipeline returns `ReactTestState` — the caller owns formatting, collection, delivery, and cleanup.
 
 ### Properties
 
@@ -8,101 +8,92 @@ Composable pipeline-based test class for React. Extends `CTGTest` from `ctg-js-t
 |----------|------|-------------|
 | _name | STRING | Pipeline name (inherited) |
 | _steps | [ctgTestStep] | Step definitions including React types (inherited) |
-| _skips | [OBJECT] | Skip directives (inherited) |
 
 ### Static Fields
 
 | Field | Type | Description |
 |-------|------|-------------|
-| STEP_TYPES | Set | All valid step types: stage, assert, assert-any, chain, render, interact, snapshot, renderHook |
-| VALID_CONFIG_KEYS | [STRING] | Inherited keys + snapshotFilePath, snapshotFileUrl, updateSnapshots, maxSnapshotBytes |
+| VALID_CONFIG_KEYS | [STRING] | Inherited keys + snapshotFilePath, snapshotFileUrl, updateSnapshots, createBaselines, maxSnapshotBytes |
 
 ---
 
 ### CTGReactTest.init :: STRING -> ctgReactTest
 
-Creates a new React test pipeline. Uses late-bound construction.
+Creates a new React test pipeline.
 
-```javascript
+```jsx
 const test = CTGReactTest.init("my component test");
 ```
 
 ---
 
-### ctgReactTest.render :: STRING, JSX|(() -> JSX), OBJECT? -> this
+### ctgReactTest.render :: STRING, JSX|(VOID -> JSX), OBJECT? -> this
 
-Renders a React element and wraps the result as a `ReactContext` subject. Accepts a JSX element directly or a function returning JSX (lazy evaluation). Options: `{ wrapper?, user? }`. Chainable.
+Renders a React element and populates `ReactTestState` fields (screen, user, container, rerender). Accepts a JSX element directly or a function returning JSX. Options: `{ wrapper }`. Chainable.
 
-```javascript
-test.render("mount", React.createElement(MyComponent, { prop: "value" }));
+```jsx
+test.render("mount", <MyComponent prop="value" />);
 ```
 
 ---
 
-### ctgReactTest.interact :: STRING, (* -> *|PROMISE(*)) -> this
+### ctgReactTest.interact :: STRING, (reactTestState -> reactTestState), (Error -> *)? -> this
 
-Convenience stage for user interactions. Receives `ReactContext`, must return it. Validates that `ctx.user` is not null (throws `INVALID_STEP` if `@testing-library/user-event` is not installed). Chainable.
+Executes a user interaction callback against state. Requires `state.user` (user-event). The callback must return `ReactTestState`. Chainable.
 
-```javascript
-test.interact("click submit", async (ctx) => {
-    await ctx.user.click(ctx.screen.getByText("Submit"));
-    return ctx;
+```jsx
+test.interact("click submit", async (state) => {
+    await state.user.click(state.screen.getByText("Submit"));
+    return state;
 });
 ```
 
 ---
 
-### ctgReactTest.renderHook :: STRING, (() -> *), OBJECT? -> this
+### ctgReactTest.assertSnapshot :: STRING, JSX|(VOID -> JSX), OBJECT? -> this
 
-Renders a hook in isolation. The hook return value is stored as `ctx.data.result` (a ref — `result.current` reflects latest value after rerenders). Options: `{ wrapper? }`. Chainable.
+Renders a component via `react-test-renderer` and compares the serialized component tree against a stored JSON baseline. Requires `snapshotFilePath` or `snapshotFileUrl` in config. Chainable.
 
-```javascript
+```jsx
+test.assertSnapshot("component tree", <MyComponent prop="value" />);
+```
+
+---
+
+### ctgReactTest.renderHook :: STRING, (VOID -> *), OBJECT? -> this
+
+Renders a hook in isolation and populates `state.data.result` with the hook return value (a ref — `result.current` reflects latest value after rerenders). Options: `{ wrapper }`. Chainable.
+
+```jsx
 test.renderHook("mount", () => useCounter(0));
-// Later: ctx.data.result.current.count
 ```
 
 ---
 
-### ctgReactTest.snapshot :: STRING, ((ReactContext) -> *)?, OBJECT? -> this
+### ctgReactTest.chain :: STRING, ctgTest -> this
 
-Snapshot assert. The extraction function defaults to `(ctx) => ctx.container.innerHTML`. Options: `{ sanitize? }` for redacting sensitive content before storage. Chainable.
+Overrides `CTGTest.chain` to preserve React testing state across chained pipelines. The inner pipeline receives a separate `ReactTestState` instance with shared React field references (screen, container, user, rerender, data). Chainable.
 
-```javascript
-test.snapshot("rendered html");
-test.snapshot("text only", (ctx) => ctx.container.textContent);
-test.snapshot("safe", null, { sanitize: (html) => html.replace(/token/g, "REDACTED") });
+```jsx
+const verifyGreeting = CTGReactTest.init("verify")
+    .assert("has text", (state) =>
+        state.container.innerHTML.includes("Hello"), true);
+
+test.chain("verify", verifyGreeting);
 ```
 
 ---
 
-### ctgReactTest.start :: *, OBJECT? -> PROMISE(STRING|OBJECT|VOID)
+### ctgReactTest.start :: reactTestState|*, OBJECT? -> PROMISE(reactTestState)
 
-Executes the pipeline. Runs validation first (config, steps, skips). If an execution formatter is configured, delegates to it. Otherwise runs standalone with cleanup in `finally`.
+Executes the pipeline. Wraps raw values in `ReactTestState`. Validates config and steps synchronously, then runs steps async. Returns `ReactTestState`. The caller owns cleanup and formatting.
 
-```javascript
-// Standalone
-const report = await test.start(null, { output: "return-json" });
-
-// With formatter
-const formatter = new CTGVitestFormatter();
-await test.start(null, { formatter });
-const report = formatter.getReport();
+```jsx
+const state = await test.start(null);
 ```
 
 ---
 
 ### Inherited Methods
 
-All methods from `CTGTest`: `stage`, `assert`, `assertAny`, `chain`, `skip`, `compare`. See ctg-js-test documentation.
-
----
-
-### CTGReactTest._compareSnapshot :: STRING, STRING, *, OBJECT? -> {match: BOOL, stored?: *}
-
-Static. Reads stored snapshot by file path and step path, compares with actual value. Writes on first run. Options: `{ maxSnapshotBytes?, updateSnapshots? }`.
-
----
-
-### CTGReactTest._updateSnapshot :: STRING, STRING, * -> VOID
-
-Static. Writes a snapshot value to file, overwriting any existing value for that key.
+All methods from `CTGTest`: `stage`, `assert`, `assertAny`, `skip`, `compare`. See ctg-js-test documentation.

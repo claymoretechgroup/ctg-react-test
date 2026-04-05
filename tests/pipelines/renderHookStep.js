@@ -8,7 +8,7 @@ import { cleanup } from "@testing-library/react";
 import CTGTestResult from "ctg-js-test/result";
 import ReactTestState from "../../src/ReactTestState.js";
 import CTGReactTest from "../../src/CTGReactTest.js";
-import { useCounter } from "../components.js";
+import { useCounter } from "../components.jsx";
 
 // :: OBJECT -> PROMISE(VOID)
 export default async function run({ test: rawTest, assert }) {

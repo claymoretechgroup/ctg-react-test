@@ -1,28 +1,18 @@
 // InteractStep tests — §2
-//
-// Validates that interact executes user interactions against state,
-// requires user-event, and follows stage-like error semantics.
-//
-// NOTE: Coverage gap that requires separate process/environment:
-// - Missing user-event dependency (INVALID_STEP error when state.user is null)
 
-import React from "react";
 import { cleanup } from "@testing-library/react";
 import CTGTestResult from "ctg-js-test/result";
 import CTGReactTest from "../../src/CTGReactTest.js";
-import { Counter, LoginForm } from "../components.js";
+import { Counter, LoginForm } from "../components.jsx";
 
-// :: OBJECT -> PROMISE(VOID)
 export default async function run({ test: rawTest, assert }) {
     const test = (name, fn) => rawTest(name, async () => {
         try { await fn(); } finally { cleanup(); }
     });
 
-    // ── Basic Interaction ───────────────────────────────────────
-
     await test("interact: clicks button and changes state", async () => {
         const state = await CTGReactTest.init("interact click")
-            .render("mount", React.createElement(Counter))
+            .render("mount", <Counter />)
             .interact("click increment", async (state) => {
                 await state.user.click(state.screen.getByText("Increment"));
                 return state;
@@ -35,7 +25,7 @@ export default async function run({ test: rawTest, assert }) {
 
     await test("interact: multiple interactions", async () => {
         const state = await CTGReactTest.init("interact multi")
-            .render("mount", React.createElement(Counter))
+            .render("mount", <Counter />)
             .interact("click three times", async (state) => {
                 await state.user.click(state.screen.getByText("Increment"));
                 await state.user.click(state.screen.getByText("Increment"));
@@ -48,11 +38,9 @@ export default async function run({ test: rawTest, assert }) {
         assert(state.status === CTGTestResult.STATUS.PASS, "multiple clicks worked");
     });
 
-    // ── Form Interaction ────────────────────────────────────────
-
     await test("interact: form submission", async () => {
         const state = await CTGReactTest.init("interact form")
-            .render("mount", React.createElement(LoginForm))
+            .render("mount", <LoginForm />)
             .interact("fill and submit", async (state) => {
                 await state.user.type(state.screen.getByLabelText("Username"), "alice");
                 await state.user.click(state.screen.getByText("Submit"));
@@ -64,25 +52,20 @@ export default async function run({ test: rawTest, assert }) {
         assert(state.status === CTGTestResult.STATUS.PASS, "form submission worked");
     });
 
-    // ── Must Return State ───────────────────────────────────────
-
     await test("interact: must return ReactTestState", async () => {
         const state = await CTGReactTest.init("interact no return")
-            .render("mount", React.createElement(Counter))
+            .render("mount", <Counter />)
             .interact("forget return", async (state) => {
                 await state.user.click(state.screen.getByText("Increment"));
-                // deliberately does not return state
             })
             .start(null, { haltOnFailure: false });
         const interactResult = state.results.find((r) => r.name === "forget return");
         assert(interactResult.status === CTGTestResult.STATUS.ERROR, "error on no return");
     });
 
-    // ── Error Handling ──────────────────────────────────────────
-
     await test("interact: error produces error result", async () => {
         const state = await CTGReactTest.init("interact error")
-            .render("mount", React.createElement(Counter))
+            .render("mount", <Counter />)
             .interact("throw", async () => {
                 throw new Error("interaction failed");
             })
@@ -93,7 +76,7 @@ export default async function run({ test: rawTest, assert }) {
 
     await test("interact: error handler recovers", async () => {
         const state = await CTGReactTest.init("interact recovery")
-            .render("mount", React.createElement(Counter))
+            .render("mount", <Counter />)
             .interact("fail and recover", async () => {
                 throw new Error("boom");
             }, (err) => err.message)
@@ -102,13 +85,11 @@ export default async function run({ test: rawTest, assert }) {
         assert(result.status === CTGTestResult.STATUS.RECOVERED, "recovered");
     });
 
-    // ── Validation ──────────────────────────────────────────────
-
     await test("interact: non-function fn fails validation", async () => {
         let threw = false;
         try {
             await CTGReactTest.init("bad interact")
-                .render("mount", React.createElement(Counter))
+                .render("mount", <Counter />)
                 .interact("bad", "not a function")
                 .start(null);
         } catch {

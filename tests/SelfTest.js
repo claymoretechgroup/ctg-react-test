@@ -30,12 +30,12 @@ global.CustomEvent = dom.window.CustomEvent;
 // ── Pipeline Categories ─────────────────────────────────────────
 
 import runReactTestState from "./pipelines/reactTestState.js";
-import runRenderStep from "./pipelines/renderStep.js";
-import runInteractStep from "./pipelines/interactStep.js";
+import runRenderStep from "./pipelines/renderStep.jsx";
+import runInteractStep from "./pipelines/interactStep.jsx";
 import runRenderHookStep from "./pipelines/renderHookStep.js";
-import runAssertSnapshotStep from "./pipelines/assertSnapshotStep.js";
-import runPipelineIntegration from "./pipelines/pipelineIntegration.js";
-import runResultCollection from "./pipelines/resultCollection.js";
+import runAssertSnapshotStep from "./pipelines/assertSnapshotStep.jsx";
+import runPipelineIntegration from "./pipelines/pipelineIntegration.jsx";
+import runResultCollection from "./pipelines/resultCollection.jsx";
 
 // ── Bootstrap Harness ───────────────────────────────────────────
 

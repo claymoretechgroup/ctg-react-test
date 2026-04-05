@@ -3,25 +3,21 @@
 // Validates that the render step mounts a React component and
 // populates ReactTestState fields (screen, user, container, rerender).
 
-import React from "react";
 import { cleanup } from "@testing-library/react";
 import CTGTestResult from "ctg-js-test/result";
 import ReactTestState from "../../src/ReactTestState.js";
 import CTGReactTest from "../../src/CTGReactTest.js";
-import { Greeting, Counter } from "../components.js";
+import { Greeting, Counter } from "../components.jsx";
 
 // :: OBJECT -> PROMISE(VOID)
 export default async function run({ test: rawTest, assert }) {
-    // Wrap test to cleanup RTL after each render test
     const test = (name, fn) => rawTest(name, async () => {
         try { await fn(); } finally { cleanup(); }
     });
 
-    // ── Basic Render ────────────────────────────────────────────
-
     await test("render: mounts component and populates state", async () => {
         const state = await CTGReactTest.init("render basic")
-            .render("mount", React.createElement(Greeting, { name: "World" }))
+            .render("mount", <Greeting name="World" />)
             .start(null);
         assert(state instanceof ReactTestState, "returns ReactTestState");
         assert(state.screen !== null, "screen populated");
@@ -31,72 +27,62 @@ export default async function run({ test: rawTest, assert }) {
 
     await test("render: container has rendered HTML", async () => {
         const state = await CTGReactTest.init("render html")
-            .render("mount", React.createElement(Greeting, { name: "Test" }))
+            .render("mount", <Greeting name="Test" />)
             .start(null);
         assert(state.container.innerHTML.includes("Hello, Test!"), "HTML rendered");
     });
 
     await test("render: screen queries work", async () => {
         const state = await CTGReactTest.init("render screen")
-            .render("mount", React.createElement(Greeting, { name: "Screen" }))
+            .render("mount", <Greeting name="Screen" />)
             .assert("heading", (state) =>
                 state.screen.getByRole("heading").textContent, "Hello, Screen!")
             .start(null);
         assert(state.status === CTGTestResult.STATUS.PASS, "screen query passed");
     });
 
-    // ── Function Element ────────────────────────────────────────
-
     await test("render: accepts function returning element", async () => {
         const state = await CTGReactTest.init("render fn")
-            .render("mount", () => React.createElement(Greeting, { name: "Lazy" }))
+            .render("mount", () => <Greeting name="Lazy" />)
             .assert("rendered", (state) =>
                 state.container.innerHTML.includes("Lazy"), true)
             .start(null);
         assert(state.status === CTGTestResult.STATUS.PASS, "function element worked");
     });
 
-    // ── User Event Setup ────────────────────────────────────────
-
     await test("render: sets up user-event when available", async () => {
         const state = await CTGReactTest.init("render user")
-            .render("mount", React.createElement(Counter))
+            .render("mount", <Counter />)
             .start(null);
         assert(state.user !== null, "user-event set up");
     });
 
-    // ── Render Result Status ────────────────────────────────────
-
     await test("render: records pass result", async () => {
         const state = await CTGReactTest.init("render pass")
-            .render("mount", React.createElement(Greeting, { name: "X" }))
+            .render("mount", <Greeting name="X" />)
             .start(null);
         assert(state.results.length >= 1, "has result");
         assert(state.results[0].status === CTGTestResult.STATUS.PASS, "render passed");
         assert(state.results[0].name === "mount", "result named");
     });
 
-    // ── Wrapper Support ─────────────────────────────────────────
-
     await test("render: accepts wrapper option", async () => {
         function Wrapper({ children }) {
-            return React.createElement("div", { "data-testid": "wrapper" }, children);
+            return <div data-testid="wrapper">{children}</div>;
         }
         const state = await CTGReactTest.init("render wrapper")
-            .render("mount", React.createElement(Greeting, { name: "Wrapped" }), { wrapper: Wrapper })
+            .render("mount", <Greeting name="Wrapped" />, { wrapper: Wrapper })
             .assert("wrapped", (state) =>
                 state.screen.getByTestId("wrapper") !== null, true)
             .start(null);
         assert(state.status === CTGTestResult.STATUS.PASS, "wrapper applied");
     });
 
-    // ── Rerender ────────────────────────────────────────────────
-
     await test("render: rerender function updates component", async () => {
         const state = await CTGReactTest.init("render rerender")
-            .render("mount", React.createElement(Greeting, { name: "First" }))
+            .render("mount", <Greeting name="First" />)
             .stage("rerender", (state) => {
-                state.rerender(React.createElement(Greeting, { name: "Second" }));
+                state.rerender(<Greeting name="Second" />);
                 return state;
             })
             .assert("updated", (state) =>
@@ -104,8 +90,4 @@ export default async function run({ test: rawTest, assert }) {
             .start(null);
         assert(state.status === CTGTestResult.STATUS.PASS, "rerender worked");
     });
-
-    // ── DOM Required ────────────────────────────────────────────
-    // NOTE: Can't easily test DOM-missing case since jsdom is always set up
-    // in SelfTest. This would need a separate process to validate.
 }

@@ -1,16 +1,18 @@
 {
     "name": "ctg-react-test",
-    "version": "2.0.0",
+    "version": "2.1.0",
     "description": "Composable pipeline-based testing for React, extending ctg-js-test",
     "type": "module",
     "exports": {
-        ".": "./src/index.js"
+        ".": "./src/index.js",
+        "./jsx-loader": "./src/JSXLoader.js"
     },
     "scripts": {
-        "test": "node tests/SelfTest.js"
+        "test": "node --import ./src/JSXLoader.js tests/SelfTest.js"
     },
     "dependencies": {
-        "ctg-js-test": "github:claymoretechgroup/ctg-js-test"
+        "ctg-js-test": "github:claymoretechgroup/ctg-js-test",
+        "esbuild": "^0.25.0"
     },
     "peerDependencies": {
         "@testing-library/react": ">=14.0.0",
