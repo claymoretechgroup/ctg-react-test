@@ -305,3 +305,192 @@ describe("static utilities", () => {
         expect(result).toBe(false);
     });
 });
+
+// ── DOM environment failure ───────────────────────────────────────
+
+describe("DOM environment validation", () => {
+
+    it("throws INVALID_OPERATION with code 1000 when DOM is missing", async () => {
+        // Save and remove DOM globals
+        const origDoc = globalThis.document;
+        const origWin = globalThis.window;
+        const origHTML = globalThis.HTMLElement;
+        try {
+            delete globalThis.document;
+            delete globalThis.window;
+            delete globalThis.HTMLElement;
+
+            await expect(
+                CTGReactTest.init("no dom")
+                    .assertComponent("check", (screen) => "x", "x")
+                    .start(<Greeting name="World" />)
+            ).rejects.toThrow();
+
+            try {
+                await CTGReactTest.init("no dom error check")
+                    .start(<Greeting name="World" />);
+            } catch (err) {
+                expect(err).toBeInstanceOf(CTGTestError);
+                expect(err.type).toBe("INVALID_OPERATION");
+                expect(err.code).toBe(1000);
+            }
+        } finally {
+            globalThis.document = origDoc;
+            globalThis.window = origWin;
+            globalThis.HTMLElement = origHTML;
+        }
+    });
+});
+
+// ── Pre-mounted state cleanup protection ──────────────────────────
+
+describe("pre-mounted ReactTestState cleanup protection", () => {
+
+    it("autoCleanup: true does NOT clean up a pre-mounted ReactTestState", async () => {
+        // First pipeline mounts and returns state with autoCleanup: false
+        const mounted = await CTGReactTest.init("mount")
+            .interact("click", async ({ screen, user }) => {
+                await user.click(screen.getByText("Increment"));
+            })
+            .start(<Counter />, { autoCleanup: false });
+
+        expect(mounted.container).not.toBe(null);
+        const htmlBefore = mounted.container.innerHTML;
+
+        // Second pipeline receives the pre-mounted state.
+        // Even with default autoCleanup: true, the second pipeline
+        // should NOT clean up because it didn't perform the mount.
+        const result = await CTGReactTest.init("reuse")
+            .assertComponent("still there", (screen) =>
+                screen.getByTestId("count").textContent, "1")
+            .start(mounted);
+
+        // Container should still be populated after second pipeline
+        expect(result.container).not.toBe(null);
+        expect(result.container.innerHTML).toBe(htmlBefore);
+
+        // Manual cleanup since autoCleanup was false on first pipeline
+        const { cleanup } = await import("@testing-library/react");
+        cleanup();
+    });
+});
+
+// ── Config error specificity ──────────────────────────────────────
+
+describe("config validation error specificity", () => {
+
+    it("non-function wrapper throws CTGTestError INVALID_CONFIG (1002)", async () => {
+        try {
+            await CTGReactTest.init("bad wrapper")
+                .start(<Greeting name="World" />, { wrapper: "not a function" });
+            expect.unreachable("should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CTGTestError);
+            expect(err.type).toBe("INVALID_CONFIG");
+            expect(err.code).toBe(1002);
+        }
+    });
+
+    it("non-boolean autoCleanup throws CTGTestError INVALID_CONFIG (1002)", async () => {
+        try {
+            await CTGReactTest.init("bad autoCleanup")
+                .start(<Greeting name="World" />, { autoCleanup: "yes" });
+            expect.unreachable("should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CTGTestError);
+            expect(err.type).toBe("INVALID_CONFIG");
+            expect(err.code).toBe(1002);
+        }
+    });
+
+    it("numeric autoCleanup throws CTGTestError INVALID_CONFIG (1002)", async () => {
+        try {
+            await CTGReactTest.init("numeric autoCleanup")
+                .start(<Greeting name="World" />, { autoCleanup: 1 });
+            expect.unreachable("should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CTGTestError);
+            expect(err.type).toBe("INVALID_CONFIG");
+            expect(err.code).toBe(1002);
+        }
+    });
+});
+
+// ── Inherited skip and timeout with React operations ──────────────
+
+describe("inherited skip with React operations", () => {
+
+    it("skip gates an interact operation", async () => {
+        let interactRan = false;
+        const state = await CTGReactTest.init("skip interact")
+            .skip("click", () => true)
+            .interact("click", async ({ screen, user }) => {
+                interactRan = true;
+                await user.click(screen.getByText("Increment"));
+            })
+            .assertComponent("still zero", (screen) =>
+                screen.getByTestId("count").textContent, "0")
+            .start(<Counter />);
+
+        expect(interactRan).toBe(false);
+        const skipResult = state.results.find(r =>
+            r.label[r.label.length - 1] === "click");
+        expect(skipResult.skipped).toBe(true);
+    });
+
+    it("skip gates an assertComponent operation", async () => {
+        const state = await CTGReactTest.init("skip assert")
+            .skip("check", () => true)
+            .assertComponent("check", (screen) =>
+                screen.getByTestId("count").textContent, "0")
+            .start(<Counter />, { haltOnFailure: false });
+
+        const skipResult = state.results.find(r =>
+            r.label[r.label.length - 1] === "check");
+        expect(skipResult.skipped).toBe(true);
+    });
+});
+
+describe("inherited timeout with React operations", () => {
+
+    it("timeout on interact produces ERROR", async () => {
+        const state = await CTGReactTest.init("timeout interact")
+            .interact("slow click", async () => {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            })
+            .start(<Counter />, { timeout: 50, haltOnFailure: false });
+
+        const result = state.results.find(r =>
+            r.label[r.label.length - 1] === "slow click");
+        expect(result.status).toBe(S.ERROR);
+    });
+
+    it("timeout on assertComponent produces ERROR", async () => {
+        const state = await CTGReactTest.init("timeout assert")
+            .assertComponent("slow query", async () => {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                return "value";
+            }, "value")
+            .start(<Counter />, { timeout: 50, haltOnFailure: false });
+
+        const result = state.results.find(r =>
+            r.label[r.label.length - 1] === "slow query");
+        expect(result.status).toBe(S.ERROR);
+    });
+
+    it("cleanup still runs after timeout", async () => {
+        const state = await CTGReactTest.init("timeout cleanup")
+            .interact("slow", async () => {
+                await new Promise(resolve => setTimeout(resolve, 200));
+            })
+            .start(<Counter />, { timeout: 50, haltOnFailure: false });
+
+        // Pipeline completed (with error) — cleanup should have run.
+        // We can verify by checking that a new mount works without issues.
+        const fresh = await CTGReactTest.init("fresh after timeout")
+            .assertComponent("renders", (screen) =>
+                screen.getByTestId("count").textContent, "0")
+            .start(<Counter />);
+        expect(fresh.results[0].status).toBe(S.PASS);
+    });
+});
