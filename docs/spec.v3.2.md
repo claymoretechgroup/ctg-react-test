@@ -134,7 +134,7 @@ React-specific fields are plain public properties (not getters):
 - `data` — plain object for developer-defined data, default `{}`
 
 > **Judgment Call — plain properties not getters for React fields:**
-> These fields are populated imperatively by `_mount()` after
+> These fields are populated imperatively by `#mount()` after
 > construction. They are mutable, not computed. Getters would add
 > ceremony without adding safety — the fields are testing surface,
 > not invariant-protected state. This matches v3.0's approach and is
@@ -261,7 +261,7 @@ stage handler).
 > changes.
 
 > **Judgment Call — user-event null check in handler, not at build
-> time:** user-event is optional (imported dynamically in `_mount`).
+> time:** user-event is optional (imported dynamically in `#mount`).
 > The check happens at execution time inside the stage handler because
 > all validation is deferred to `start()` per the base framework
 > convention. The error surfaces as an `INVALID_OPERATION` with a
@@ -357,8 +357,10 @@ where:
 > already be mounted and its container populated. This is consistent
 > with the staged comparison pattern where the expected state is
 > produced by a prior pipeline run with `autoCleanup: false`. If the
-> expected state's container is null, `toHTML()` returns `""`, which
-> is the compared value — no error is thrown.
+> expected state's container is null, `toHTML()` throws
+> `INVALID_OPERATION` — a null container means the component was
+> never mounted or was already cleaned up, and silently comparing
+> against `""` would cause false-positive results.
 
 #### Inherited Builder Methods
 
@@ -411,7 +413,7 @@ Executes the pipeline:
      populated.
    - If `subject` is JSX, wrap in `ReactTestState` with `{ subject }`
      and mount via RTL.
-4. **Mount** (if JSX) — call `_mount(state, wrapper)` to render the
+4. **Mount** (if JSX) — call `#mount(state, wrapper)` to render the
    component and populate `screen`, `user`, `container`, `rerender`
    on state.
 5. **Delegate to base** — call `super.start(state, strippedConfig)`.
