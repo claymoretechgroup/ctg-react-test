@@ -32,9 +32,9 @@ describe("Constructor defaults", () => {
         expect(state.data).toEqual({});
     });
 
-    it("subject defaults to null when no args", () => {
+    it("subject defaults to undefined when no args", () => {
         const state = new ReactTestState();
-        expect(state.subject).toBe(null);
+        expect(state.subject).toBe(undefined);
     });
 
     it("label defaults to empty string when no args", () => {
