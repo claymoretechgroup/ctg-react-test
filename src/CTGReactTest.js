@@ -88,6 +88,9 @@ export default class CTGReactTest extends CTGTest {
     // and mounts via RTL. Strips React config before base validation.
     // Runs cleanup after unless autoCleanup: false.
     async start(subject, config = {}) {
+        // Guard against explicit null/undefined
+        if (config == null) config = {};
+
         // Extract React-specific config
         const wrapper = config.wrapper || null;
         const autoCleanup = config.autoCleanup !== false;
@@ -170,11 +173,16 @@ export default class CTGReactTest extends CTGTest {
         state.container = renderResult.container;
         state.rerender = renderResult.rerender;
 
-        // user-event is optional
+        // user-event is optional — import failure means not installed
         try {
             const ue = await import("@testing-library/user-event");
             state.user = ue.default.setup();
-        } catch {
+        } catch (err) {
+            // Only swallow import/module-not-found errors.
+            // Re-throw setup errors that indicate a real problem.
+            if (err.code !== "ERR_MODULE_NOT_FOUND" && err.code !== "MODULE_NOT_FOUND") {
+                throw err;
+            }
             state.user = null;
         }
     }

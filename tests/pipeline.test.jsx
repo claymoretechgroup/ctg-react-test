@@ -60,6 +60,24 @@ describe("pipeline lifecycle", () => {
         expect(result.container).toBe(originalContainer);
     });
 
+    it("start() with null config uses defaults without crashing", async () => {
+        const state = await CTGReactTest.init("null config")
+            .assertComponent("check", (screen) =>
+                screen.getByText("Hello, World!").textContent, "Hello, World!")
+            .start(<Greeting name="World" />, null);
+
+        expect(state.results[0].status).toBe(S.PASS);
+    });
+
+    it("start() with undefined config uses defaults without crashing", async () => {
+        const state = await CTGReactTest.init("undef config")
+            .assertComponent("check", (screen) =>
+                screen.getByText("Hello, World!").textContent, "Hello, World!")
+            .start(<Greeting name="World" />, undefined);
+
+        expect(state.results[0].status).toBe(S.PASS);
+    });
+
     it("pipeline label overwrites state.label", async () => {
         const state = await CTGReactTest.init("my pipeline label")
             .start(<Greeting name="World" />);
