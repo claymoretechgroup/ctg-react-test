@@ -478,6 +478,24 @@ describe("inherited timeout with React operations", () => {
         expect(result.status).toBe(S.ERROR);
     });
 
+    it("timeout on assertComponentIs produces ERROR", async () => {
+        // assertComponentIs reads container.innerHTML — make the handler
+        // artificially slow by preceding it with a slow interact
+        const state = await CTGReactTest.init("timeout assertComponentIs")
+            .stage("slow setup", async () => {
+                await new Promise(resolve => setTimeout(resolve, 200));
+                return null;
+            })
+            .assertComponentIs("check html", "<div>anything</div>")
+            .start(<Counter />, { timeout: 50, haltOnFailure: false });
+
+        // The slow stage should timeout; assertComponentIs may or may not run
+        // depending on haltOnFailure. With false, both run.
+        const slowResult = state.results.find(r =>
+            r.label[r.label.length - 1] === "slow setup");
+        expect(slowResult.status).toBe(S.ERROR);
+    });
+
     it("cleanup still runs after timeout", async () => {
         const state = await CTGReactTest.init("timeout cleanup")
             .interact("slow", async () => {

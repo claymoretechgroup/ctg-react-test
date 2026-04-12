@@ -216,15 +216,20 @@ describe("assertComponentIs", () => {
         expect(state.results[0].error.type).toBe("INVALID_OPERATION");
     });
 
-    it("throws INVALID_OPERATION if expected ReactTestState container is null", () => {
+    it("throws INVALID_OPERATION (1000) if expected ReactTestState container is null", () => {
         // Expected state with null container — toHTML() called at build time
         const expectedState = new ReactTestState({ subject: null, label: "empty" });
         // container is null — toHTML() should throw
 
-        expect(() => {
+        try {
             CTGReactTest.init("null expected container")
                 .assertComponentIs("should throw", expectedState);
-        }).toThrow();
+            expect.unreachable("should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CTGTestError);
+            expect(err.type).toBe("INVALID_OPERATION");
+            expect(err.code).toBe(1000);
+        }
     });
 
     it("builder returns this for chaining", () => {
