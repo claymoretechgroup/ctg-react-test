@@ -8,7 +8,7 @@
         "./jsx-loader": "./src/JSXLoader.js"
     },
     "scripts": {
-        "test": "node --import ./src/JSXLoader.js tests/SelfTest.js"
+        "test": "vitest run"
     },
     "dependencies": {
         "ctg-js-test": "github:claymoretechgroup/ctg-js-test",
@@ -32,6 +32,7 @@
         "jsdom": "^24.0.0",
         "react": "^18.0.0",
         "react-dom": "^18.0.0",
-        "react-test-renderer": "^18.3.1"
+        "react-test-renderer": "^18.3.1",
+        "vitest": "^4.1.4"
     }
 }
