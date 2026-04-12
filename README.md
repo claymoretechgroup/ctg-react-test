@@ -1,15 +1,15 @@
 # ctg-react-test
 
-`ctg-react-test` is a composable, pipeline-based test framework for React components, extending `ctg-js-test`. The component is the subject — passed to `start()`, which mounts it implicitly. Pipeline steps dispatch events and verify rendered output. Cleanup runs automatically. Ships with a JSX loader so test files and components can be written as `.jsx`.
+`ctg-react-test` is a composable, pipeline-based test framework for React components, extending `ctg-js-test`. The component is the subject — passed to `start()`, which mounts it via `@testing-library/react`. Pipeline steps interact with the component and assert against its rendered output. The caller owns reporting: the pipeline returns state, the caller formats and delivers results.
 
 **Key Features:**
 
-* **Component is the subject**: Pass JSX to `start()`, the pipeline tests that component
-* **Caller-owned reporting**: Pipeline returns state, caller formats and delivers results
-* **Extends ctg-js-test**: Inherits stage, assert, assertAny, chain, skip, five-status reporting
-* **JSX support**: Ships an esbuild-based ESM loader for `.jsx` files
-* **Static snapshot utilities**: Compare component trees outside the pipeline
-* **Automatic cleanup**: RTL cleanup runs after pipeline completes
+* **Component as subject**: Pass JSX to `start()`, the pipeline mounts and tests that component
+* **Three React operations**: `interact` dispatches events, `assertComponent` computes and compares, `assertComponentIs` compares rendered HTML directly
+* **Predicate-based assertions**: Expected values auto-wrap in `equals()`; pass a `CTGTestPredicate` for custom comparisons
+* **Composable chains**: Define reusable pipeline fragments and compose them with `chain`
+* **Caller-owned reporting**: Pipeline returns `ReactTestState`, caller decides how to format and deliver
+* **Automatic cleanup**: RTL cleanup runs after the pipeline completes unless disabled
 
 ## Install
 
@@ -23,12 +23,25 @@ Minimum Node.js version: 20.
 
 ## Examples
 
-### Interact and Assert
+### Basic Assertion
 
-Mount a component, dispatch events, verify the rendered output:
+Mount a component and verify rendered text:
 
 ```jsx
 import CTGReactTest from "ctg-react-test";
+import { Greeting } from "../src/Greeting.jsx";
+
+const state = await CTGReactTest.init("greeting")
+    .assertComponent("says hello", (screen) =>
+        screen.getByRole("heading").textContent, "Hello, World!")
+    .start(<Greeting name="World" />);
+```
+
+### Interaction
+
+Dispatch events and verify the result:
+
+```jsx
 import { Counter } from "../src/Counter.jsx";
 
 const state = await CTGReactTest.init("counter")
@@ -40,25 +53,38 @@ const state = await CTGReactTest.init("counter")
     .start(<Counter initial={0} />);
 ```
 
-Run with the JSX loader:
+### Composing Pipelines
 
-```
-node --import ctg-react-test/jsx-loader tests/CounterTest.jsx
+Define reusable verification fragments and chain them:
+
+```jsx
+const verifyVisible = CTGReactTest.init("verify count visible")
+    .assertComponent("count exists", (screen) =>
+        screen.getByTestId("count") !== null, true);
+
+const state = await CTGReactTest.init("counter with verify")
+    .interact("click", async ({screen, user}) => {
+        await user.click(screen.getByText("Increment"));
+    })
+    .chain("verify", verifyVisible)
+    .assertComponent("count is 1", (screen) =>
+        screen.getByTestId("count").textContent, "1")
+    .start(<Counter initial={0} />);
 ```
 
-### Verify Rendered HTML
+### HTML Comparison
 
 Compare the component's rendered HTML against a known string:
 
 ```jsx
-const state = await CTGReactTest.init("greeting")
+const state = await CTGReactTest.init("greeting markup")
     .assertComponentIs("matches", "<h1>Hello, World!</h1>")
     .start(<Greeting name="World" />);
 ```
 
 ### Staged Comparison
 
-Compare two pipelines that take different interaction paths:
+Compare two pipelines that take different interaction paths. Disable auto-cleanup on the expected pipeline so its container survives for comparison:
 
 ```jsx
 const expected = await CTGReactTest.init("expected state")
@@ -68,79 +94,34 @@ const expected = await CTGReactTest.init("expected state")
     })
     .start(<Counter initial={0} />, { autoCleanup: false });
 
-const state = await CTGReactTest.init("counter test")
+const state = await CTGReactTest.init("actual state")
     .interact("different path", async ({screen, user}) => {
-        // some other interaction sequence
+        await user.type(screen.getByTestId("input"), "2");
+        await user.click(screen.getByText("Set"));
     })
     .assertComponentIs("same result", expected)
     .start(<Counter initial={0} />);
 ```
 
-### Form Interaction
+### Custom Predicates
 
-Test form submission with user-event:
+Use `CTGTestPredicates` for comparisons beyond equality:
 
 ```jsx
-import { LoginForm } from "../src/LoginForm.jsx";
+import CTGTestPredicates from "ctg-js-test/predicates";
 
-const state = await CTGReactTest.init("login")
-    .interact("fill and submit", async ({screen, user}) => {
-        await user.type(screen.getByLabelText("Username"), "alice");
-        await user.click(screen.getByText("Submit"));
+const state = await CTGReactTest.init("search results")
+    .interact("search", async ({screen, user}) => {
+        await user.type(screen.getByRole("searchbox"), "react");
+        await user.click(screen.getByText("Search"));
     })
-    .assertComponent("welcome shown", (screen) =>
-        screen.getByText("Welcome, alice!") !== null, true)
-    .start(<LoginForm />);
-```
-
-### Composable Fragments
-
-Define reusable pipeline pieces and chain them:
-
-```jsx
-const verifyCount = CTGReactTest.init("verify count")
-    .assertComponent("count visible", (screen) =>
-        screen.getByTestId("count") !== null, true);
-
-const state = await CTGReactTest.init("counter with verify")
-    .interact("click", async ({screen, user}) => {
-        await user.click(screen.getByText("Increment"));
-    })
-    .chain("verify", verifyCount)
-    .assertComponent("count is 1", (screen) =>
-        screen.getByTestId("count").textContent, "1")
-    .start(<Counter initial={0} />);
-```
-
-### Structural Snapshot Comparison
-
-Compare component trees outside the pipeline:
-
-```jsx
-const match = await CTGReactTest.compareSnapshot(
-    <Counter initial={0} />,
-    <Counter initial={0} />
-); // true
-
-const diffs = await CTGReactTest.diffSnapshot(
-    <Counter initial={0} />,
-    <Counter initial={1} />
-); // [{ path: "...", expected: "0", actual: "1" }]
-```
-
-### Wrapper Config
-
-Wrap the component in providers:
-
-```jsx
-function ThemeProvider({children}) {
-    return <ThemeContext.Provider value="dark">{children}</ThemeContext.Provider>;
-}
-
-const state = await CTGReactTest.init("themed")
-    .assertComponent("has theme", (screen) =>
-        screen.getByTestId("theme").textContent, "dark")
-    .start(<MyComponent />, { wrapper: ThemeProvider });
+    .assertComponent("has results", (screen) =>
+        screen.getAllByRole("listitem").length,
+        CTGTestPredicates.greaterThan(0))
+    .assertComponent("contains term", (screen) =>
+        screen.getByTestId("results").textContent,
+        CTGTestPredicates.contains("react"))
+    .start(<SearchPage />);
 ```
 
 ### Caller-Owned Reporting
@@ -152,7 +133,7 @@ import CTGTestConsoleFormatter from "ctg-js-test/formatter/console";
 import CTGTestResult from "ctg-js-test/result";
 
 const state = await CTGReactTest.init("example")
-    .assertComponent("check", (screen) =>
+    .assertComponent("check heading", (screen) =>
         screen.getByRole("heading").textContent, "Hello!")
     .start(<Greeting name="" />);
 
@@ -163,29 +144,21 @@ const failed = state.status === S.FAIL || state.status === S.ERROR;
 process.exit(failed ? 1 : 0);
 ```
 
+Run with the JSX loader:
+
+```
+node --import ctg-react-test/jsx-loader tests/GreetingTest.jsx
+```
+
 ## Configuration
 
 | Key | Type | Default | Description |
 |-----|------|---------|-------------|
-| `haltOnFailure` | boolean | `true` | Stop pipeline on first fail or error |
-| `timeout` | number | `5000` | Per-step timeout in ms (0 = disabled) |
-| `wrapper` | function | `null` | React component to wrap the rendered element |
-| `autoCleanup` | boolean | `true` | Run RTL cleanup after pipeline completes |
-
-## Considerations
-
-### Hook Testing
-
-Direct hook testing (renderHook, result.current) is not supported. Hooks are tested through the components that use them — if a hook drives a state change, the component renders the result, and `assertComponent` verifies it. For hooks that don't produce visible output, write a thin test component that renders the hook's return values. Alternatively, use `ctg-js-test` directly for value-based hook testing with stage/assert.
-
-### Error Handling
-
-React-specific steps (interact, assertComponent, assertComponentIs) do not accept error handlers. This is a departure from ctg-js-test's stage/assert semantics where an optional error handler enables recovery. In React testing, a missing element or a failed interaction is a test failure, not something to recover from. The inherited steps (stage, assert, assertAny) retain their error handlers.
-
-### Snapshot Comparison
-
-`toSnapshot`, `diffSnapshot`, and `compareSnapshot` are static methods that compare fresh, isolated renders of JSX elements via react-test-renderer. They do not reflect internal state from interactions — they compare component structure for given props. For comparing post-interaction state, use `assertComponentIs` with a staged pipeline or HTML string.
+| `wrapper` | FUNCTION | `null` | React component to wrap the rendered element |
+| `autoCleanup` | BOOL | `true` | Run RTL cleanup after pipeline completes |
+| `haltOnFailure` | BOOL | `true` | Stop pipeline on first fail or error |
+| `timeout` | INT | `5000` | Per-step timeout in ms (0 = disabled) |
 
 ## Notice
 
-`ctg-react-test` is under active development. The core pipeline API is stable.
+`ctg-react-test` is under active development. The core pipeline API is stable but utilities and configuration options may change.
