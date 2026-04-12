@@ -152,7 +152,7 @@ React-specific fields are plain public properties (not getters):
 ```
 // :: VOID -> STRING
 // Returns the rendered HTML from the mounted component's container.
-// Returns empty string if container is null (component not mounted).
+// Throws INVALID_OPERATION if container is null.
 toHTML()
 ```
 
