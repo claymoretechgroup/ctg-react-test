@@ -180,4 +180,31 @@ describe("interact", () => {
         // In v2.2, labels are arrays — the result label should contain the operation label
         expect(state.results[0].label).toContain("click it");
     });
+
+    it("non-function callback produces INVALID_OPERATION error at execution time", async () => {
+        const state = await CTGReactTest.init("bad callback")
+            .interact("bad", "not a function")
+            .start(<Counter />, { haltOnFailure: false });
+
+        expect(state.results[0].status).toBe(S.ERROR);
+        expect(state.results[0].error.type).toBe("INVALID_OPERATION");
+        expect(state.results[0].error.code).toBe(1000);
+    });
+
+    it("user as undefined (not just null) triggers INVALID_OPERATION", async () => {
+        // Pre-mount a state and delete user to simulate undefined
+        const mounted = await CTGReactTest.init("setup")
+            .start(<Counter />, { autoCleanup: false });
+        mounted.user = undefined;
+
+        const state = await CTGReactTest.init("undefined user")
+            .interact("click", async ({ user }) => { await user.click(); })
+            .start(mounted, { haltOnFailure: false });
+
+        expect(state.results[0].status).toBe(S.ERROR);
+        expect(state.results[0].error.type).toBe("INVALID_OPERATION");
+
+        const { cleanup } = await import("@testing-library/react");
+        cleanup();
+    });
 });

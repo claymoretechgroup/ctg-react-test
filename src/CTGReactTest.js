@@ -27,7 +27,12 @@ export default class CTGReactTest extends CTGTest {
     // returns void. Internally delegates to stage. Chainable.
     interact(label, fn) {
         return this.stage(label, async (state) => {
-            if (state.user === null) {
+            if (typeof fn !== "function") {
+                throw new CTGTestError("INVALID_OPERATION",
+                    `interact callback must be a function, got ${typeof fn}`,
+                    { label, got: typeof fn });
+            }
+            if (state.user == null) {
                 throw new CTGTestError("INVALID_OPERATION",
                     "user-event is required for interact() — install @testing-library/user-event");
             }
@@ -45,6 +50,11 @@ export default class CTGReactTest extends CTGTest {
             ? expected
             : CTGTestPredicates.equals(expected);
         return this.assert(label, async (state) => {
+            if (typeof fn !== "function") {
+                throw new CTGTestError("INVALID_OPERATION",
+                    `assertComponent callback must be a function, got ${typeof fn}`,
+                    { label, got: typeof fn });
+            }
             return await fn(state.screen);
         }, predicate);
     }
@@ -56,8 +66,12 @@ export default class CTGReactTest extends CTGTest {
         let resolvedExpected;
         if (expected instanceof ReactTestState) {
             resolvedExpected = expected.toHTML();
-        } else {
+        } else if (typeof expected === "string") {
             resolvedExpected = expected;
+        } else {
+            throw new CTGTestError("INVALID_OPERATION",
+                `assertComponentIs expected must be a STRING or ReactTestState, got ${typeof expected}`,
+                { label, got: typeof expected });
         }
         const predicate = CTGTestPredicates.equals(resolvedExpected);
         return this.assert(label, (state) => {

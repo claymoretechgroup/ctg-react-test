@@ -237,4 +237,43 @@ describe("assertComponentIs", () => {
         const returned = pipeline.assertComponentIs("check html", "<div>test</div>");
         expect(returned).toBe(pipeline);
     });
+
+    it("rejects non-string non-ReactTestState expected with INVALID_OPERATION", () => {
+        try {
+            CTGReactTest.init("bad expected")
+                .assertComponentIs("check", 42);
+            expect.unreachable("should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CTGTestError);
+            expect(err.type).toBe("INVALID_OPERATION");
+            expect(err.code).toBe(1000);
+        }
+    });
+
+    it("rejects object expected with INVALID_OPERATION", () => {
+        try {
+            CTGReactTest.init("bad expected object")
+                .assertComponentIs("check", { html: "<div/>" });
+            expect.unreachable("should have thrown");
+        } catch (err) {
+            expect(err).toBeInstanceOf(CTGTestError);
+            expect(err.type).toBe("INVALID_OPERATION");
+            expect(err.code).toBe(1000);
+        }
+    });
+});
+
+// ── assertComponent callback validation ───────────────────────────
+
+describe("assertComponent callback validation", () => {
+
+    it("non-function callback produces INVALID_OPERATION at execution time", async () => {
+        const state = await CTGReactTest.init("bad callback")
+            .assertComponent("bad", "not a function", "value")
+            .start(<Greeting name="World" />, { haltOnFailure: false });
+
+        expect(state.results[0].status).toBe(S.ERROR);
+        expect(state.results[0].error.type).toBe("INVALID_OPERATION");
+        expect(state.results[0].error.code).toBe(1000);
+    });
 });
