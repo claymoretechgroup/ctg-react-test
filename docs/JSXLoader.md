@@ -1,6 +1,6 @@
 # JSXLoader
 
-Node.js ESM loader registration for JSX files. Registers `JSXHook` via `node:module.register()` so that `.jsx` imports are transformed to plain JS before Node evaluates them.
+Node.js ESM loader registration for JSX and TypeScript files. Registers `JSXHook` via `node:module.register()` so that `.jsx`, `.tsx`, and `.ts` imports are transformed to plain JS before Node evaluates them.
 
 This is the entry point for `--import`. It does not transform files itself — it registers `JSXHook` as the loader hook.
 
@@ -23,6 +23,20 @@ In package.json:
     }
 }
 ```
+
+The entry file itself may be `.js`, `.jsx`, `.tsx`, or `.ts` — the hook is registered before the entry is evaluated.
+
+---
+
+### TypeScript components
+
+A test written in `.jsx` can import a component written in `.tsx`, and vice versa. Both are transformed by the same hook, so no build step is needed between source and test:
+
+```
+tests/Button.test.jsx   imports   src/components/Button/Button.tsx
+```
+
+Note that this transforms, it does not typecheck — esbuild strips types without verifying them. Run `tsc --noEmit` separately for that.
 
 ---
 

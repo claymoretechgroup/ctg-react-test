@@ -10,6 +10,7 @@
 * **Composable chains**: Define reusable pipeline fragments and compose them with `chain`
 * **Caller-owned reporting**: Pipeline returns `ReactTestState`, caller decides how to format and deliver
 * **Automatic cleanup**: RTL cleanup runs after the pipeline completes unless disabled
+* **JavaScript or TypeScript**: The bundled loader transforms `.jsx`, `.tsx`, and `.ts`, so tests import components from source with no build step
 
 ## Install
 
@@ -149,6 +150,61 @@ Run with the JSX loader:
 ```
 node --import ctg-react-test/jsx-loader tests/GreetingTest.jsx
 ```
+
+### TypeScript Components
+
+The bundled loader transforms `.jsx`, `.tsx`, and `.ts`, so a test imports a TypeScript component directly from source — no build step, and the test file itself may be either extension:
+
+```jsx
+// tests/Button.test.jsx
+import CTGReactTest from "ctg-react-test";
+import { Button } from "../src/components/Button/Button.tsx";
+
+const state = await CTGReactTest.init("renders label")
+    .assertComponent("label text", (screen) =>
+        screen.getByRole("button").textContent, "Save")
+    .start(<Button>Save</Button>);
+```
+
+Run it the same way:
+
+```
+node --import ctg-react-test/jsx-loader tests/Button.test.jsx
+```
+
+Two things worth knowing:
+
+**This transforms, it does not typecheck.** esbuild strips types without verifying them, so a type error will not fail the test run. Run `tsc --noEmit` separately.
+
+**The framework itself ships no type declarations.** A `.tsx` test importing it needs a `declare module "ctg-react-test"` shim under `strict`. Component props in JSX are still checked against the component's own types, which is the part that catches mistakes.
+
+### DOM Environment
+
+`start()` mounts through `@testing-library/react`, which needs a DOM. The framework does not provide one — supply it either by running under Vitest with `environment: "jsdom"`, or by installing globals before the first mount:
+
+```js
+// tests/setup.js — import this before anything mounts
+import { JSDOM } from "jsdom";
+
+const dom = new JSDOM("<!doctype html><html><body></body></html>", {
+    url: "http://localhost",
+    pretendToBeVisual: true
+});
+
+// navigator is getter-only on Node 22, so define rather than assign
+const install = (key, value) =>
+    Object.defineProperty(globalThis, key, { value, writable: true, configurable: true });
+
+install("window", dom.window);
+install("document", dom.window.document);
+install("navigator", dom.window.navigator);
+for (const key of Object.getOwnPropertyNames(dom.window)) {
+    if (!(key in globalThis)) install(key, dom.window[key]);
+}
+globalThis.IS_REACT_ACT_ENVIRONMENT = true;
+```
+
+`@testing-library/react` is imported lazily at mount time, so the DOM only has to exist before the first `start()` — not before the framework is imported.
 
 ## Configuration
 

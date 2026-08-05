@@ -1,6 +1,6 @@
 {
     "name": "ctg-react-test",
-    "version": "3.0.0",
+    "version": "3.1.0",
     "description": "Composable pipeline-based testing for React, extending ctg-js-test",
     "type": "module",
     "exports": {
