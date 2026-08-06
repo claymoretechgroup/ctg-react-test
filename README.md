@@ -10,7 +10,7 @@
 * **Composable chains**: Define reusable pipeline fragments and compose them with `chain`
 * **Caller-owned reporting**: Pipeline returns `ReactTestState`, caller decides how to format and deliver
 * **Automatic cleanup**: RTL cleanup runs after the pipeline completes unless disabled
-* **JavaScript or TypeScript**: The bundled loader transforms `.jsx`, `.tsx`, and `.ts`, so tests import components from source with no build step
+* **Loads real component source**: The bundled loader handles `.jsx`, `.tsx`, `.ts`, CSS Modules, and `?raw` assets, so tests import components from source with no build step
 
 ## Install
 

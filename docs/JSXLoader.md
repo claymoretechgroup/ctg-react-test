@@ -1,6 +1,6 @@
 # JSXLoader
 
-Node.js ESM loader registration for JSX and TypeScript files. Registers `JSXHook` via `node:module.register()` so that `.jsx`, `.tsx`, and `.ts` imports are transformed to plain JS before Node evaluates them.
+Node.js ESM loader registration. Registers `JSXHook` via `node:module.register()` so that the imports a React component contains — JSX, TypeScript, CSS Modules, and `?raw` text assets — resolve before Node evaluates them.
 
 This is the entry point for `--import`. It does not transform files itself — it registers `JSXHook` as the loader hook.
 
@@ -37,6 +37,17 @@ tests/Button.test.jsx   imports   src/components/Button/Button.tsx
 ```
 
 Note that this transforms, it does not typecheck — esbuild strips types without verifying them. Run `tsc --noEmit` separately for that.
+
+### Styles and assets
+
+Component source is not limited to code. A component that imports a CSS Module or a `?raw` asset is loadable too:
+
+```
+import styles from "./Button.module.css";   // styles.root === "root"
+import svg from "./icons/undo.svg?raw";     // the file's text
+```
+
+Without this, testing any component that has styles would require running the suite through a bundler.
 
 ---
 
