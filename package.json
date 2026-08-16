@@ -1,14 +1,21 @@
 {
     "name": "ctg-react-test",
-    "version": "3.2.0",
+    "version": "4.0.0",
     "description": "Composable pipeline-based testing for React, extending ctg-js-test",
     "type": "module",
     "exports": {
-        ".": "./src/index.js",
-        "./jsx-loader": "./src/JSXLoader.js"
+        ".": {
+            "types": "./src/types/index.d.ts",
+            "default": "./src/index.js"
+        },
+        "./jsx-loader": {
+            "types": "./src/types/JSXLoader.d.ts",
+            "default": "./src/JSXLoader.js"
+        }
     },
     "scripts": {
-        "test": "vitest run"
+        "test": "vitest run",
+        "check:types": "tsc -p tsconfig.types.json --noEmit"
     },
     "dependencies": {
         "ctg-js-test": "github:claymoretechgroup/ctg-js-test",
@@ -28,11 +35,19 @@
     },
     "devDependencies": {
         "@testing-library/react": "^14.0.0",
-        "@testing-library/user-event": "^14.0.0",
+        "@testing-library/user-event": "^14.6.4",
+        "@types/react": "^18.3.31",
+        "@types/react-dom": "^18.0.0",
         "jsdom": "^24.0.0",
         "react": "^18.0.0",
         "react-dom": "^18.0.0",
         "react-test-renderer": "^18.3.1",
-        "vitest": "^4.1.4"
-    }
+        "typescript": "^5.9.3",
+        "vitest": "^4.1.10"
+    },
+    "overrides": {
+        "form-data": "4.0.6",
+        "ws": "8.21.3"
+    },
+    "types": "./src/types/index.d.ts"
 }

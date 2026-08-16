@@ -1,6 +1,6 @@
 import { describe, it, expect } from "vitest";
 import CTGReactTest from "../src/CTGReactTest.js";
-import CTGTestResult from "ctg-js-test/result";
+import { CTGTestResult } from "ctg-js-test";
 import { Counter, LoginForm } from "./components.jsx";
 
 const S = CTGTestResult.STATUS;

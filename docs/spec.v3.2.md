@@ -2,7 +2,7 @@
 
 **Realizes:** ctg-js-test v2.2 extension surfaces (STATE, PREDICATE, PIPELINE)
 **Supersedes:** `spec.v3.md`
-**Depends on:** ctg-js-test v2.2
+**Depends on:** ctg-js-test
 **Target:** JavaScript (ES modules, Node.js)
 **Code Style:** `ctg-project-proc/code-styles/js-code-style.md`
 **Minimum Node:** 20
@@ -718,8 +718,10 @@ No new error codes are introduced.
 
 ## 6. Formatters
 
-Inherits `CTGTestConsoleFormatter` and `CTGTestJsonFormatter` from
-ctg-js-test v2.2. No React-specific formatters.
+Uses `CTGTestConsoleFormatter` and `CTGTestJsonFormatter` from
+ctg-js-test. No React-specific formatters. In package versions that
+ship TypeScript declarations, these base formatter classes are also
+available as named exports from `ctg-react-test`.
 
 The formatter output for React tests looks identical to base framework
 output — `[PASS]`, `[FAIL]`, `[ERROR]`, `[SKIPPED]` tags with labels.
@@ -796,6 +798,7 @@ src/
     ReactTestState.js         # State extension (extends CTGTestState)
     JSXHook.js                # ESM loader hook for .jsx files
     JSXLoader.js              # Loader registration entry point
+    types/                    # TypeScript declarations for package exports
 index.js                      # Package entry point
 ```
 
@@ -807,8 +810,13 @@ index.js                      # Package entry point
 - `src/steps/` directory
 
 **Package exports (package.json):**
-- `"."` — `src/index.js` (default export: `CTGReactTest`, named: `ReactTestState`)
-- `"ctg-react-test/jsx-loader"` — `src/JSXLoader.js`
+- `"."` — `src/index.js` with `src/types/index.d.ts` (default export: `CTGReactTest`, named: `ReactTestState`)
+- `"ctg-react-test/jsx-loader"` — `src/JSXLoader.js` with `src/types/JSXLoader.d.ts`
+
+The root export also exposes commonly used base utilities from
+`ctg-js-test`: `CTGTest`, `CTGTestError`, `CTGTestPredicate`,
+`CTGTestPredicates`, `CTGTestResult`, `CTGTestState`,
+`CTGTestConsoleFormatter`, and `CTGTestJsonFormatter`.
 
 ---
 

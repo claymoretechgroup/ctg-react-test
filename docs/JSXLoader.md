@@ -38,6 +38,8 @@ tests/Button.test.jsx   imports   src/components/Button/Button.tsx
 
 Note that this transforms, it does not typecheck — esbuild strips types without verifying them. Run `tsc --noEmit` separately for that.
 
+`ctg-react-test` ships TypeScript declarations for the package entry point and this side-effect loader entry point, so strict TypeScript tests can import `ctg-react-test` and `ctg-react-test/jsx-loader` without local module shims.
+
 ### Styles and assets
 
 Component source is not limited to code. A component that imports a CSS Module or a `?raw` asset is loadable too:

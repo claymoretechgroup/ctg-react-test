@@ -11,6 +11,7 @@
 * **Caller-owned reporting**: Pipeline returns `ReactTestState`, caller decides how to format and deliver
 * **Automatic cleanup**: RTL cleanup runs after the pipeline completes unless disabled
 * **Loads real component source**: The bundled loader handles `.jsx`, `.tsx`, `.ts`, CSS Modules, and `?raw` assets, so tests import components from source with no build step
+* **Base utilities included**: Re-exports predicates, results, errors, state, and formatters from `ctg-js-test`
 
 ## Install
 
@@ -21,6 +22,8 @@ npm install claymoretechgroup/ctg-react-test
 Peer dependencies: `react`, `react-dom`, `@testing-library/react`. Optional: `@testing-library/user-event`.
 
 Minimum Node.js version: 20.
+
+`ctg-js-test` is installed as an internal dependency and its common utilities are re-exported from `ctg-react-test`; user code should not need to import `ctg-js-test` directly for React test predicates, results, errors, state, or formatters.
 
 ## Examples
 
@@ -109,7 +112,7 @@ const state = await CTGReactTest.init("actual state")
 Use `CTGTestPredicates` for comparisons beyond equality:
 
 ```jsx
-import CTGTestPredicates from "ctg-js-test/predicates";
+import { CTGReactTest, CTGTestPredicates } from "ctg-react-test";
 
 const state = await CTGReactTest.init("search results")
     .interact("search", async ({screen, user}) => {
@@ -130,8 +133,11 @@ const state = await CTGReactTest.init("search results")
 The pipeline returns `ReactTestState`. The caller formats and delivers:
 
 ```jsx
-import CTGTestConsoleFormatter from "ctg-js-test/formatter/console";
-import CTGTestResult from "ctg-js-test/result";
+import {
+    CTGReactTest,
+    CTGTestConsoleFormatter,
+    CTGTestResult
+} from "ctg-react-test";
 
 const state = await CTGReactTest.init("example")
     .assertComponent("check heading", (screen) =>
@@ -176,7 +182,7 @@ Two things worth knowing:
 
 **This transforms, it does not typecheck.** esbuild strips types without verifying them, so a type error will not fail the test run. Run `tsc --noEmit` separately.
 
-**The framework itself ships no type declarations.** A `.tsx` test importing it needs a `declare module "ctg-react-test"` shim under `strict`. Component props in JSX are still checked against the component's own types, which is the part that catches mistakes.
+**The framework ships type declarations.** TypeScript tests can import `ctg-react-test` directly under `strict`; component props in JSX are still checked against the component's own types.
 
 ### DOM Environment
 

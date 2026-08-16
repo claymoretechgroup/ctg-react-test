@@ -1,9 +1,11 @@
 import { describe, it, expect } from "vitest";
 import CTGReactTest from "../src/CTGReactTest.js";
-import CTGTestResult from "ctg-js-test/result";
-import CTGTestPredicates from "ctg-js-test/predicates";
-import CTGTestPredicate from "ctg-js-test/predicate";
-import CTGTestError from "ctg-js-test/error";
+import {
+    CTGTestError,
+    CTGTestPredicate,
+    CTGTestPredicates,
+    CTGTestResult
+} from "ctg-js-test";
 import ReactTestState from "../src/ReactTestState.js";
 import { Greeting, Counter } from "./components.jsx";
 

@@ -1,7 +1,8 @@
-import CTGTest from "ctg-js-test"; // Base pipeline engine
-import CTGTestError from "ctg-js-test/error"; // Typed errors
-import CTGTestPredicate from "ctg-js-test/predicate"; // Predicate type
-import CTGTestPredicates from "ctg-js-test/predicates"; // Convenience builders
+import CTGTest, {
+    CTGTestError,
+    CTGTestPredicate,
+    CTGTestPredicates
+} from "ctg-js-test"; // Base pipeline utilities
 import { isDeepStrictEqual } from "node:util"; // For snapshot comparison
 import ReactTestState from "./ReactTestState.js"; // React state
 

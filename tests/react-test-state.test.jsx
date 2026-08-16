@@ -1,7 +1,6 @@
 import { describe, it, expect } from "vitest";
 import ReactTestState from "../src/ReactTestState.js";
-import CTGTestState from "ctg-js-test/state";
-import CTGTestError from "ctg-js-test/error";
+import { CTGTestError, CTGTestState } from "ctg-js-test";
 
 // --- 1. Constructor defaults ---
 
